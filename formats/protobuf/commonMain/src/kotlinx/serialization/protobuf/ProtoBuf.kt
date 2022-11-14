@@ -5,9 +5,13 @@
 package kotlinx.serialization.protobuf
 
 import kotlinx.serialization.*
-import kotlinx.serialization.modules.*
+import kotlinx.serialization.descriptors.PolymorphicKind
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.SerialKind
+import kotlinx.serialization.descriptors.StructureKind
+import kotlinx.serialization.modules.EmptySerializersModule
+import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.protobuf.internal.*
-import kotlin.js.*
 
 /**
  * Implements [encoding][encodeToByteArray] and [decoding][decodeFromByteArray] classes to/from bytes
@@ -169,3 +173,58 @@ public class ProtoBufBuilder internal constructor(proto: ProtoBuf) {
 @ExperimentalSerializationApi
 private class ProtoBufImpl(encodeDefaults: Boolean, serializersModule: SerializersModule) :
     ProtoBuf(encodeDefaults, serializersModule)
+
+
+/**
+ * Draft.
+ */
+@ExperimentalSerializationApi
+public fun <T> KSerializer<T>.getSerializeSize(): Int {
+    val descriptor = this.descriptor
+    for (element in 0 until descriptor.elementsCount) {
+        when (descriptor.kind) {
+            SerialKind.CONTEXTUAL -> TODO()
+            SerialKind.ENUM -> TODO()
+            PolymorphicKind.OPEN -> TODO()
+            PolymorphicKind.SEALED -> TODO()
+            // primitives
+            PrimitiveKind.BOOLEAN -> TODO()
+            PrimitiveKind.BYTE -> TODO()
+            PrimitiveKind.CHAR -> TODO()
+            PrimitiveKind.DOUBLE -> TODO()
+            PrimitiveKind.FLOAT -> TODO()
+            PrimitiveKind.INT -> TODO()
+            PrimitiveKind.LONG -> TODO()
+            PrimitiveKind.SHORT -> TODO()
+            PrimitiveKind.STRING -> TODO()
+            // class
+            StructureKind.CLASS -> TODO()
+            StructureKind.LIST -> TODO()
+            StructureKind.MAP -> TODO()
+            StructureKind.OBJECT -> TODO()
+        }
+    }
+    TODO()
+}
+
+internal fun PrimitiveKind.getSerializedSize(): Int {
+    when (this) {
+        PrimitiveKind.BOOLEAN -> TODO()
+        PrimitiveKind.BYTE -> TODO()
+        PrimitiveKind.CHAR -> TODO()
+        PrimitiveKind.DOUBLE -> TODO()
+        PrimitiveKind.FLOAT -> TODO()
+        PrimitiveKind.INT -> TODO()
+        PrimitiveKind.LONG -> TODO()
+        PrimitiveKind.SHORT -> TODO()
+        PrimitiveKind.STRING -> TODO()
+    }
+}
+
+
+
+
+
+
+
+
