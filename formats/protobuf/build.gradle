@@ -26,6 +26,10 @@ kotlin {
         commonMain {
             dependencies {
                 api project(":kotlinx-serialization-core")
+                /*
+                 * as workaround for compiler-plugin.
+                 */
+                implementation 'org.jetbrains.kotlin:kotlin-reflect'
             }
         }
 

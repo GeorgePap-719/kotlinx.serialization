@@ -5,9 +5,9 @@
 package kotlinx.serialization.protobuf
 
 import kotlinx.serialization.*
-import kotlinx.serialization.modules.*
+import kotlinx.serialization.modules.EmptySerializersModule
+import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.protobuf.internal.*
-import kotlin.js.*
 
 /**
  * Implements [encoding][encodeToByteArray] and [decoding][decodeFromByteArray] classes to/from bytes

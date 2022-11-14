@@ -33,61 +33,61 @@ internal abstract class ProtobufTaggedEncoder : ProtobufTaggedBase(), Encoder, C
 
     protected open fun encodeTaggedInline(tag: ProtoDesc, inlineDescriptor: SerialDescriptor): Encoder = this.apply { pushTag(tag) }
 
-    public final override fun encodeNull() {
+    final override fun encodeNull() {
         if (nullableMode != NullableMode.ACCEPTABLE) {
             val message = when (nullableMode) {
                 NullableMode.OPTIONAL -> "'null' is not supported for optional properties in ProtoBuf"
                 NullableMode.COLLECTION -> "'null' is not supported for collection types in ProtoBuf"
                 NullableMode.NOT_NULL -> "'null' is not allowed for not-null properties"
-                else -> "'null' is not supported in ProtoBuf";
+                else -> "'null' is not supported in ProtoBuf"
             }
             throw SerializationException(message)
         }
     }
 
-    public final override fun encodeBoolean(value: Boolean) {
+    final override fun encodeBoolean(value: Boolean) {
         encodeTaggedBoolean(popTagOrDefault(), value)
     }
 
-    public final override fun encodeByte(value: Byte) {
+    final override fun encodeByte(value: Byte) {
         encodeTaggedByte(popTagOrDefault(), value)
     }
 
-    public final override fun encodeShort(value: Short) {
+    final override fun encodeShort(value: Short) {
         encodeTaggedShort(popTagOrDefault(), value)
     }
 
-    public final override fun encodeInt(value: Int) {
+    final override fun encodeInt(value: Int) {
         encodeTaggedInt(popTagOrDefault(), value)
     }
 
-    public final override fun encodeLong(value: Long) {
+    final override fun encodeLong(value: Long) {
         encodeTaggedLong(popTagOrDefault(), value)
     }
 
-    public final override fun encodeFloat(value: Float) {
+    final override fun encodeFloat(value: Float) {
         encodeTaggedFloat(popTagOrDefault(), value)
     }
 
-    public final override fun encodeDouble(value: Double) {
+    final override fun encodeDouble(value: Double) {
         encodeTaggedDouble(popTagOrDefault(), value)
     }
 
-    public final override fun encodeChar(value: Char) {
+    final override fun encodeChar(value: Char) {
         encodeTaggedChar(popTagOrDefault(), value)
     }
 
-    public final override fun encodeString(value: String) {
+    final override fun encodeString(value: String) {
         encodeTaggedString(popTagOrDefault(), value)
     }
 
-    public final override fun encodeEnum(
+    final override fun encodeEnum(
         enumDescriptor: SerialDescriptor,
         index: Int
     ): Unit = encodeTaggedEnum(popTagOrDefault(), enumDescriptor, index)
 
 
-    public final override fun endStructure(descriptor: SerialDescriptor) {
+    final override fun endStructure(descriptor: SerialDescriptor) {
         if (stackSize >= 0) {
             popTag()
         }
@@ -96,46 +96,48 @@ internal abstract class ProtobufTaggedEncoder : ProtobufTaggedBase(), Encoder, C
 
     protected open fun endEncode(descriptor: SerialDescriptor) {}
 
-    public final override fun encodeBooleanElement(descriptor: SerialDescriptor, index: Int, value: Boolean): Unit =
+    final override fun encodeBooleanElement(descriptor: SerialDescriptor, index: Int, value: Boolean): Unit =
         encodeTaggedBoolean(descriptor.getTag(index), value)
 
-    public final override fun encodeByteElement(descriptor: SerialDescriptor, index: Int, value: Byte): Unit =
+    final override fun encodeByteElement(descriptor: SerialDescriptor, index: Int, value: Byte): Unit =
         encodeTaggedByte(descriptor.getTag(index), value)
 
-    public final override fun encodeShortElement(descriptor: SerialDescriptor, index: Int, value: Short): Unit =
+    final override fun encodeShortElement(descriptor: SerialDescriptor, index: Int, value: Short): Unit =
         encodeTaggedShort(descriptor.getTag(index), value)
 
-    public final override fun encodeIntElement(descriptor: SerialDescriptor, index: Int, value: Int): Unit =
+    final override fun encodeIntElement(descriptor: SerialDescriptor, index: Int, value: Int): Unit =
         encodeTaggedInt(descriptor.getTag(index), value)
 
-    public final override fun encodeLongElement(descriptor: SerialDescriptor, index: Int, value: Long): Unit =
+    final override fun encodeLongElement(descriptor: SerialDescriptor, index: Int, value: Long): Unit =
         encodeTaggedLong(descriptor.getTag(index), value)
 
-    public final override fun encodeFloatElement(descriptor: SerialDescriptor, index: Int, value: Float): Unit =
+    final override fun encodeFloatElement(descriptor: SerialDescriptor, index: Int, value: Float): Unit =
         encodeTaggedFloat(descriptor.getTag(index), value)
 
-    public final override fun encodeDoubleElement(descriptor: SerialDescriptor, index: Int, value: Double): Unit =
+    final override fun encodeDoubleElement(descriptor: SerialDescriptor, index: Int, value: Double): Unit =
         encodeTaggedDouble(descriptor.getTag(index), value)
 
-    public final override fun encodeCharElement(descriptor: SerialDescriptor, index: Int, value: Char): Unit =
+    final override fun encodeCharElement(descriptor: SerialDescriptor, index: Int, value: Char): Unit =
         encodeTaggedChar(descriptor.getTag(index), value)
 
-    public final override fun encodeStringElement(descriptor: SerialDescriptor, index: Int, value: String): Unit =
+    final override fun encodeStringElement(descriptor: SerialDescriptor, index: Int, value: String): Unit =
         encodeTaggedString(descriptor.getTag(index), value)
 
-    public final override fun <T : Any?> encodeSerializableElement(
+    final override fun <T : Any?> encodeSerializableElement(
         descriptor: SerialDescriptor,
         index: Int,
         serializer: SerializationStrategy<T>,
         value: T
     ) {
         nullableMode = NullableMode.NOT_NULL
-
-        pushTag(descriptor.getTag(index))
+        val tag = descriptor.getTag(index)
+        println("will push tag:$tag in stack")
+        pushTag(tag)
+        println("total stackSize:${stackSize + 1}")
         encodeSerializableValue(serializer, value)
     }
 
-    public final override fun <T : Any> encodeNullableSerializableElement(
+    final override fun <T : Any> encodeNullableSerializableElement(
         descriptor: SerialDescriptor,
         index: Int,
         serializer: SerializationStrategy<T>,
