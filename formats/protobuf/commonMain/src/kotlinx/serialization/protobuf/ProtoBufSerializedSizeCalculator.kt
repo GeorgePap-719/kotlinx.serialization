@@ -7,8 +7,10 @@ import kotlinx.serialization.encoding.CompositeEncoder
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.protobuf.internal.*
 
+// notes: memoization can probably be done with a concurrent map holding descriptor and serializedSize.
+
 @OptIn(ExperimentalSerializationApi::class)
-internal class ProtoBufSerializedSizeCalculator(
+internal open class ProtoBufSerializedSizeCalculator(
     private val proto: ProtoBuf,
     private val descriptor: SerialDescriptor
 ) : ProtobufTaggedEncoder() {
@@ -18,26 +20,11 @@ internal class ProtoBufSerializedSizeCalculator(
     override val serializersModule: SerializersModule
         get() = proto.serializersModule
 
+    override fun shouldEncodeElementDefault(descriptor: SerialDescriptor, index: Int): Boolean = proto.encodeDefaults
+
     override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder {
-        when (descriptor.kind) {
-            SerialKind.CONTEXTUAL -> TODO()
-            SerialKind.ENUM -> TODO()
-            PolymorphicKind.OPEN -> TODO()
-            PolymorphicKind.SEALED -> TODO()
-            PrimitiveKind.BOOLEAN -> TODO()
-            PrimitiveKind.BYTE -> TODO()
-            PrimitiveKind.CHAR -> TODO()
-            PrimitiveKind.DOUBLE -> TODO()
-            PrimitiveKind.FLOAT -> TODO()
-            PrimitiveKind.INT -> TODO()
-            PrimitiveKind.LONG -> TODO()
-            PrimitiveKind.SHORT -> TODO()
-            PrimitiveKind.STRING -> TODO()
-            StructureKind.CLASS -> TODO()
-            StructureKind.LIST -> TODO()
-            StructureKind.MAP -> TODO()
-            StructureKind.OBJECT -> TODO()
-        }
+        // delegate to proper encoder, e.g. class,map,list
+        TODO("")
     }
 
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc = extractParameters(index)
