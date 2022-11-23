@@ -2,10 +2,12 @@ package kotlinx.serialization.protobuf
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.CompositeEncoder
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.protobuf.internal.*
+import kotlin.jvm.JvmField
 
 // notes: memoization can probably be done with a concurrent map holding descriptor and serializedSize.
 
@@ -22,12 +24,39 @@ internal open class ProtoBufSerializedSizeCalculator(
 
     override fun shouldEncodeElementDefault(descriptor: SerialDescriptor, index: Int): Boolean = proto.encodeDefaults
 
+    /* TODO proper impl */
     override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder {
-        // delegate to proper encoder, e.g. class,map,list
-        TODO("")
+        serializedSize = 0 // reset serialized-size
+        // delegate to proper calculator, e.g. class,map,list
+        return when (descriptor.kind) {
+            StructureKind.LIST -> {
+                if (descriptor.getElementDescriptor(0).isPackable && currentTagOrDefault.isPacked) {
+                    PackedArrayCalculator(proto, currentTagOrDefault, descriptor)
+                } else {
+                    RepeatedCalculator(proto, currentTagOrDefault, descriptor)
+                }
+            }
+
+            StructureKind.CLASS, StructureKind.OBJECT, is PolymorphicKind -> {
+                val tag = currentTagOrDefault
+                if (tag == MISSING_TAG && descriptor == this.descriptor) this
+                else ObjectSizeCalculator(proto, currentTagOrDefault, descriptor)
+            }
+
+            StructureKind.MAP -> MapRepeatedCalculator(proto, currentTagOrDefault, descriptor)
+            else -> throw SerializationException("This serial kind is not supported as structure: $descriptor")
+        }
+    }
+
+    override fun endEncode(descriptor: SerialDescriptor) {
+        TODO("update here the serialized size")
     }
 
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc = extractParameters(index)
+
+    override fun <T> encodeSerializableValue(serializer: SerializationStrategy<T>, value: T) {
+        TODO("")
+    }
 
     override fun encodeTaggedInt(tag: ProtoDesc, value: Int) {
         requireNotMissingTag(tag)
@@ -94,6 +123,72 @@ internal open class ProtoBufSerializedSizeCalculator(
      */
     private fun requireNotMissingTag(tag: ProtoDesc) {
         if (tag == MISSING_TAG) throw SerializationException("tag for: $tag is required")
+    }
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+internal open class ObjectSizeCalculator(
+    proto: ProtoBuf,
+    @Suppress("unused") @JvmField protected val parentTag: ProtoDesc,
+    descriptor: SerialDescriptor
+) : ProtoBufSerializedSizeCalculator(proto, descriptor)
+
+@OptIn(ExperimentalSerializationApi::class)
+private class MapRepeatedCalculator(
+    proto: ProtoBuf,
+    parentTag: ProtoDesc,
+    descriptor: SerialDescriptor
+) : ObjectSizeCalculator(proto, parentTag, descriptor) {
+    override fun SerialDescriptor.getTag(index: Int): ProtoDesc =
+        if (index % 2 == 0) ProtoDesc(1, (parentTag.integerType))
+        else ProtoDesc(2, (parentTag.integerType))
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+private class RepeatedCalculator(
+    proto: ProtoBuf,
+    @JvmField val curTag: ProtoDesc,
+    descriptor: SerialDescriptor
+) : ObjectSizeCalculator(proto, curTag, descriptor) {
+    override fun SerialDescriptor.getTag(index: Int) = curTag
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+internal open class NestedRepeatedCalculator(
+    proto: ProtoBuf,
+    @JvmField val curTag: ProtoDesc,
+    descriptor: SerialDescriptor,
+) : ObjectSizeCalculator(proto, curTag, descriptor) {
+    // all elements always have id = 1
+    override fun SerialDescriptor.getTag(index: Int) = ProtoDesc(1, ProtoIntegerType.DEFAULT)
+}
+
+/* TODO */
+// Is missing_tag case only for packed messages?
+@OptIn(ExperimentalSerializationApi::class)
+internal class PackedArrayCalculator(
+    proto: ProtoBuf,
+    curTag: ProtoDesc,
+    descriptor: SerialDescriptor,
+) : ObjectSizeCalculator(proto, curTag, descriptor) {
+
+    // Triggers not writing header
+    override fun SerialDescriptor.getTag(index: Int): ProtoDesc = MISSING_TAG
+
+    override fun endEncode(descriptor: SerialDescriptor) {
+        TODO()
+    }
+
+    override fun beginCollection(descriptor: SerialDescriptor, collectionSize: Int): CompositeEncoder {
+        throw SerializationException("Packing only supports primitive number types")
+    }
+
+    override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder {
+        throw SerializationException("Packing only supports primitive number types")
+    }
+
+    override fun encodeTaggedString(tag: ProtoDesc, value: String) {
+        throw SerializationException("Packing only supports primitive number types")
     }
 }
 
