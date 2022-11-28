@@ -9,7 +9,18 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.protobuf.internal.*
 import kotlin.jvm.JvmField
 
+//TODO: needs @ThreadLocal?
+private val memoizedSerializedSizes = createSerializedSizeCache()
+
+internal expect fun createSerializedSizeCache(): SerializedSizeCache
+
+//TODO: add kdoc
 // notes: memoization can probably be done with a concurrent map holding descriptor and serializedSize.
+internal interface SerializedSizeCache {
+    fun get(key: SerialDescriptor): Int?
+    fun getOrPut(key: SerialDescriptor, computedSize: () -> Int): Int
+    fun put(key: SerialDescriptor, size: Int)
+}
 
 @OptIn(ExperimentalSerializationApi::class)
 internal open class ProtoBufSerializedSizeCalculator(
@@ -39,7 +50,7 @@ internal open class ProtoBufSerializedSizeCalculator(
 
             StructureKind.CLASS, StructureKind.OBJECT, is PolymorphicKind -> {
                 val tag = currentTagOrDefault
-                if (tag == MISSING_TAG && descriptor == this.descriptor) this
+                if (tag == MISSING_TAG && descriptor == this.descriptor) this //TODO: which exactly is this scenario?
                 else ObjectSizeCalculator(proto, currentTagOrDefault, descriptor)
             }
 
@@ -49,13 +60,13 @@ internal open class ProtoBufSerializedSizeCalculator(
     }
 
     override fun endEncode(descriptor: SerialDescriptor) {
-        TODO("update here the serialized size")
+        memoizedSerializedSizes.put(descriptor, serializedSize)
     }
 
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc = extractParameters(index)
 
     override fun <T> encodeSerializableValue(serializer: SerializationStrategy<T>, value: T) {
-        TODO("")
+        TODO("needs research..")
     }
 
     override fun encodeTaggedInt(tag: ProtoDesc, value: Int) {
@@ -238,7 +249,10 @@ private fun computeStringSize(value: String, tag: Int): Int {
 }
 
 @OptIn(ExperimentalSerializationApi::class)
-private fun computeEnumSize(value: Int, tag: Int, format: ProtoIntegerType): Int = computeIntSize(value, tag, format)
+private fun computeEnumSize(value: Int, tag: Int, format: ProtoIntegerType): Int {
+    val tagSize = computeTagSize(tag)
+    return tagSize + computeIntSize(value, tag, format)
+}
 
 private fun computeByteArraySize(value: ByteArray, tag: Int): Int {
     val tagSize = computeTagSize(tag)
