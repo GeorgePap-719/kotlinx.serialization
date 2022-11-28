@@ -3,8 +3,10 @@ package kotlinx.serialization.protobuf
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.SerializationStrategy
+import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.CompositeEncoder
+import kotlinx.serialization.internal.MapLikeSerializer
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.protobuf.internal.*
 import kotlin.jvm.JvmField
@@ -20,6 +22,16 @@ internal interface SerializedSizeCache {
     fun get(key: SerialDescriptor): Int?
     fun getOrPut(key: SerialDescriptor, computedSize: () -> Int): Int
     fun put(key: SerialDescriptor, size: Int)
+}
+
+//TODO: probably this is better to be put in diff kt file.
+@OptIn(ExperimentalSerializationApi::class)
+public fun <T> ProtoBuf.getOrComputeSerializedSize(serializer: SerializationStrategy<T>, value: T): Int {
+    return memoizedSerializedSizes.getOrPut(serializer.descriptor) {
+        val calculator = ProtoBufSerializedSizeCalculator(this, serializer.descriptor)
+        calculator.encodeSerializableValue(serializer, value)
+        calculator.serializedSize
+    }
 }
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -60,13 +72,22 @@ internal open class ProtoBufSerializedSizeCalculator(
     }
 
     override fun endEncode(descriptor: SerialDescriptor) {
-        memoizedSerializedSizes.put(descriptor, serializedSize)
+        //memoizedSerializedSizes.put(descriptor, serializedSize)
+        //TODO: maybe this is better to be left empty
     }
 
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc = extractParameters(index)
 
     override fun <T> encodeSerializableValue(serializer: SerializationStrategy<T>, value: T) {
-        TODO("needs research..")
+        return when {
+            serializer is MapLikeSerializer<*, *, *, *> -> {
+                TODO("needs research.")
+            }
+
+            serializer.descriptor == ByteArraySerializer().descriptor -> computeByteArraySize(value as ByteArray)
+
+            else -> serializer.serialize(this, value)
+        }
     }
 
     override fun encodeTaggedInt(tag: ProtoDesc, value: Int) {
@@ -123,7 +144,7 @@ internal open class ProtoBufSerializedSizeCalculator(
         )
     }
 
-    internal fun encodeByteArray(value: ByteArray) {
+    private fun computeByteArraySize(value: ByteArray) {
         val tag = popTagOrDefault()
         requireNotMissingTag(tag)
         serializedSize += computeByteArraySize(value, tag.protoId)
