@@ -267,7 +267,6 @@ private fun computeBooleanSize(tag: Int): Int {
 
 private fun computeStringSize(value: String, tag: Int): Int {
     val tagSize = computeTagSize(tag)
-    println("tagSize in string: $tagSize")
     return tagSize + computeStringSizeNoTag(value)
 }
 
