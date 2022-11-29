@@ -20,14 +20,16 @@ internal expect fun createSerializedSizeCache(): SerializedSizeCache
 // notes: memoization can probably be done with a concurrent map holding descriptor and serializedSize.
 internal interface SerializedSizeCache {
     fun get(key: SerialDescriptor): Int?
-    fun getOrPut(key: SerialDescriptor, computedSize: () -> Int): Int
     fun put(key: SerialDescriptor, size: Int)
 }
 
 //TODO: probably this is better to be put in diff kt file.
 @OptIn(ExperimentalSerializationApi::class)
 public fun <T> ProtoBuf.getOrComputeSerializedSize(serializer: SerializationStrategy<T>, value: T): Int {
-    return memoizedSerializedSizes.getOrPut(serializer.descriptor) {
+    val memoizedSize = memoizedSerializedSizes.get(serializer.descriptor)
+    return if (memoizedSize != null) {
+        memoizedSize
+    } else {
         val calculator = ProtoBufSerializedSizeCalculator(this, serializer.descriptor)
         calculator.encodeSerializableValue(serializer, value)
         calculator.serializedSize
@@ -72,8 +74,7 @@ internal open class ProtoBufSerializedSizeCalculator(
     }
 
     override fun endEncode(descriptor: SerialDescriptor) {
-        //memoizedSerializedSizes.put(descriptor, serializedSize)
-        //TODO: maybe this is better to be left empty
+        memoizedSerializedSizes.put(descriptor, serializedSize)
     }
 
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc = extractParameters(index)
@@ -266,6 +267,7 @@ private fun computeBooleanSize(tag: Int): Int {
 
 private fun computeStringSize(value: String, tag: Int): Int {
     val tagSize = computeTagSize(tag)
+    println("tagSize in string: $tagSize")
     return tagSize + computeStringSizeNoTag(value)
 }
 
