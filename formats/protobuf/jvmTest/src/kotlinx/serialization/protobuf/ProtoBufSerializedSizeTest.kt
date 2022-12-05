@@ -34,7 +34,7 @@ class ProtoBufSerializedSizeTest {
     @Serializable
     data class DataSignedLong(@ProtoType(ProtoIntegerType.SIGNED) val value: Long)
 
-    @Test // fails
+    @Test
     fun shouldCalculateSignedLongSize() {
         val data = DataSignedLong(10)
         val size = protoBuf.getOrComputeSerializedSize(DataSignedLong.serializer(), data)
@@ -42,4 +42,36 @@ class ProtoBufSerializedSizeTest {
         assertEquals(javaType.serializedSize, size)
     }
 
+    @Serializable
+    data class DataFixedInt(@ProtoType(ProtoIntegerType.FIXED) val value: Int)
+
+    @Test
+    fun shouldCalculateFixedInt() {
+        val data = DataFixedInt(10)
+        val size = protoBuf.getOrComputeSerializedSize(DataFixedInt.serializer(), data)
+        val javaType = TestFixedInt.newBuilder().apply { a = 10 }.build()
+        assertEquals(javaType.serializedSize, size)
+    }
+
+    @Serializable
+    data class DataDouble(val value: Double)
+
+    @Test
+    fun shouldCalculateDouble() {
+        val data = DataDouble(10.0)
+        val size = protoBuf.getOrComputeSerializedSize(DataDouble.serializer(), data)
+        val javaType = TestDouble.newBuilder().apply { a = 10.0 }.build()
+        assertEquals(javaType.serializedSize, size)
+    }
+
+    @Serializable
+    data class DataBoolean(val value: Boolean)
+
+    @Test
+    fun shouldCalculateBoolean() {
+        val data = DataBoolean(true)
+        val size = protoBuf.getOrComputeSerializedSize(DataBoolean.serializer(), data)
+        val javaType = TestBoolean.newBuilder().apply { a = true }.build()
+        assertEquals(javaType.serializedSize, size)
+    }
 }
