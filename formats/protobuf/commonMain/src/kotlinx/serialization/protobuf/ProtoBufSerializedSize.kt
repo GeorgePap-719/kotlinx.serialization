@@ -87,36 +87,9 @@ internal open class ProtoBufSerializedSizeCalculator(
 
             serializer.descriptor == ByteArraySerializer().descriptor -> computeByteArraySize(value as ByteArray)
 
-            serializer.descriptor != this.descriptor -> {
-                val tag = popTagOrDefault()
-                requireNotMissingTag(tag)
-                serializedSize += computeMessageSize(serializer, value, tag.protoId)
-            }
+            serializer.descriptor != this.descriptor -> computeMessageSize(serializer, value)
 
             else -> serializer.serialize(this, value)
-        }
-    }
-
-    private fun <T> computeMessageSize(
-        serializer: SerializationStrategy<T>,
-        value: T,
-        tag: Int
-    ): Int {
-        val tagSize = computeTagSize(tag)
-        return tagSize + computeMessageSizeNoTag(serializer, value)
-    }
-
-    private fun <T> computeMessageSizeNoTag(serializer: SerializationStrategy<T>, value: T): Int =
-        computeLengthDelimitedFieldSize(computeSerializedMessageSize(serializer, value))
-
-    private fun <T> computeSerializedMessageSize(serializer: SerializationStrategy<T>, value: T): Int {
-        val memoizedSize = memoizedSerializedSizes.get(serializer.descriptor)
-        return if (memoizedSize != null) {
-            memoizedSize
-        } else {
-            val calculator = ProtoBufSerializedSizeCalculator(proto, serializer.descriptor)
-            calculator.encodeSerializableValue(serializer, value)
-            calculator.serializedSize
         }
     }
 
@@ -178,6 +151,12 @@ internal open class ProtoBufSerializedSizeCalculator(
         val tag = popTagOrDefault()
         requireNotMissingTag(tag)
         serializedSize += computeByteArraySize(value, tag.protoId)
+    }
+
+    private fun <T> computeMessageSize(serializer: SerializationStrategy<T>, value: T) {
+        val tag = popTagOrDefault()
+        requireNotMissingTag(tag)
+        serializedSize += proto.computeMessageSize(serializer, value, tag.protoId)
     }
 
     /*
@@ -308,4 +287,30 @@ private fun computeEnumSize(value: Int, tag: Int, format: ProtoIntegerType): Int
 private fun computeByteArraySize(value: ByteArray, tag: Int): Int {
     val tagSize = computeTagSize(tag)
     return tagSize + computeByteArraySizeNoTag(value)
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+private fun <T> ProtoBuf.computeMessageSize(
+    serializer: SerializationStrategy<T>,
+    value: T,
+    tag: Int
+): Int {
+    val tagSize = computeTagSize(tag)
+    return tagSize + computeMessageSizeNoTag(serializer, value)
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+private fun <T> ProtoBuf.computeMessageSizeNoTag(serializer: SerializationStrategy<T>, value: T): Int =
+    computeLengthDelimitedFieldSize(computeSerializedMessageSize(serializer, value))
+
+@OptIn(ExperimentalSerializationApi::class)
+private fun <T> ProtoBuf.computeSerializedMessageSize(serializer: SerializationStrategy<T>, value: T): Int {
+    val memoizedSize = memoizedSerializedSizes.get(serializer.descriptor)
+    return if (memoizedSize != null) {
+        memoizedSize
+    } else {
+        val calculator = ProtoBufSerializedSizeCalculator(this, serializer.descriptor)
+        calculator.encodeSerializableValue(serializer, value)
+        calculator.serializedSize
+    }
 }
