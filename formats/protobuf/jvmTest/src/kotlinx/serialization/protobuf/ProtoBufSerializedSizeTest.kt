@@ -129,4 +129,51 @@ class ProtoBufSerializedSizeTest {
         }.build()
         assertEquals(javaType.serializedSize, size)
     }
+
+    @Serializable
+    data class DataOuterMessage(
+        val a: Int,
+        val d: Double,
+        @ProtoNumber(10)
+        val inner: DataAllTypes,
+        @ProtoNumber(20)
+        val s: String
+    )
+
+    @Test
+    fun shouldCalculateOuterMessage() {
+        val dataInner = DataAllTypes(
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7.0F,
+            8.0,
+            true,
+            "hi"
+        )
+        val data = DataOuterMessage(10, 20.0, dataInner, "hi")
+        val size = protoBuf.getOrComputeSerializedSize(DataOuterMessage.serializer(), data)
+        val javaInner = TestAllTypes.newBuilder().apply {
+            i32 = 1
+            si32 = 2
+            f32 = 3
+            i64 = 4
+            si64 = 5
+            f64 = 6
+            f = 7.0F
+            d = 8.0
+            b = true
+            s = "hi"
+        }.build()
+        val javaOuter = TestOuterMessage.newBuilder().apply {
+            a = 10
+            b = 20.0
+            inner = javaInner
+            s = "hi"
+        }.build()
+        assertEquals(javaOuter.serializedSize, size)
+    }
 }
