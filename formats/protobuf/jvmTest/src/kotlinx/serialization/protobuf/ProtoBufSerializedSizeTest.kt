@@ -74,4 +74,59 @@ class ProtoBufSerializedSizeTest {
         val javaType = TestBoolean.newBuilder().apply { a = true }.build()
         assertEquals(javaType.serializedSize, size)
     }
+
+    @Serializable
+    data class DataAllTypes(
+        val int32: Int,
+        @ProtoType(ProtoIntegerType.SIGNED)
+        val sint32: Int,
+        @ProtoType(ProtoIntegerType.FIXED)
+        val fixed32: Int,
+        @ProtoNumber(10)
+        val int64: Long,
+        @ProtoType(ProtoIntegerType.SIGNED)
+        @ProtoNumber(11)
+        val sint64: Long,
+        @ProtoType(ProtoIntegerType.FIXED)
+        @ProtoNumber(12)
+        val fixed64: Long,
+        @ProtoNumber(21)
+        val float: Float,
+        @ProtoNumber(22)
+        val double: Double,
+        @ProtoNumber(41)
+        val bool: Boolean,
+        @ProtoNumber(51)
+        val string: String
+    )
+
+    @Test
+    fun shouldCalculateAllTypes() {
+        val data = DataAllTypes(
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7.0F,
+            8.0,
+            true,
+            "hi"
+        )
+        val size = protoBuf.getOrComputeSerializedSize(DataAllTypes.serializer(), data)
+        val javaType = TestAllTypes.newBuilder().apply {
+            i32 = 1
+            si32 = 2
+            f32 = 3
+            i64 = 4
+            si64 = 5
+            f64 = 6
+            f = 7.0F
+            d = 8.0
+            b = true
+            s = "hi"
+        }.build()
+        assertEquals(javaType.serializedSize, size)
+    }
 }
