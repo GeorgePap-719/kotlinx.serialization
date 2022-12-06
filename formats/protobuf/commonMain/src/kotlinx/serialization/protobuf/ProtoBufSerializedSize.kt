@@ -89,6 +89,8 @@ internal open class ProtoBufSerializedSizeCalculator(
 
             serializer.descriptor != this.descriptor -> computeMessageSize(serializer, value)
 
+            serializer.descriptor.kind is StructureKind.LIST -> computeListSize(serializer, value)
+
             else -> serializer.serialize(this, value)
         }
     }
@@ -157,6 +159,14 @@ internal open class ProtoBufSerializedSizeCalculator(
         val tag = popTagOrDefault()
         requireNotMissingTag(tag)
         serializedSize += proto.computeMessageSize(serializer, value, tag.protoId)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> computeListSize(serializer: SerializationStrategy<T>, value: T) {
+        val listT = value as List<T>
+        val serializerListT = serializer as SerializationStrategy<List<T>>
+        serializedSize += computeMessageListSize(serializerListT, listT)
+        serializedSize += listT.size
     }
 
     /*

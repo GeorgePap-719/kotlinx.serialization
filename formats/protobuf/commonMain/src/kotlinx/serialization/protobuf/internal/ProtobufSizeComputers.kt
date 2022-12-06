@@ -1,5 +1,13 @@
 package kotlinx.serialization.protobuf.internal
 
+import kotlinx.serialization.SerializationStrategy
+
+internal fun <T> computeMessageListSize(serializer: SerializationStrategy<List<T>>, value: List<T>): Int {
+    for (item in value) {
+        TODO("")
+    }
+}
+
 internal fun computeByteArraySizeNoTag(value: ByteArray): Int = computeLengthDelimitedFieldSize(value.size)
 
 internal fun computeStringSizeNoTag(value: String): Int {
