@@ -49,6 +49,10 @@ internal open class ProtoBufSerializedSizeCalculator(
 
     override fun shouldEncodeElementDefault(descriptor: SerialDescriptor, index: Int): Boolean = proto.encodeDefaults
 
+    override fun beginCollection(descriptor: SerialDescriptor, collectionSize: Int): CompositeEncoder {
+        TODO()
+    }
+
     /* TODO proper impl */
     override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder {
         serializedSize = 0 // reset serialized-size
