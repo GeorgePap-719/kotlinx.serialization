@@ -1,13 +1,5 @@
 package kotlinx.serialization.protobuf.internal
 
-import kotlinx.serialization.SerializationStrategy
-
-internal fun <T> computeMessageListSize(serializer: SerializationStrategy<List<T>>, value: List<T>): Int {
-    for (item in value) {
-        TODO("")
-    }
-}
-
 internal fun computeByteArraySizeNoTag(value: ByteArray): Int = computeLengthDelimitedFieldSize(value.size)
 
 internal fun computeStringSizeNoTag(value: String): Int {
@@ -83,7 +75,6 @@ private const val FIXED64_SIZE = 8
 internal fun computeTagSize(protoId: Int): Int = computeUInt32SizeNoTag(makeTag(protoId, 0))
 private fun makeTag(protoId: Int, wireType: Int): Int = protoId shl TAG_TYPE_BITS or wireType
 
-//TODO: possible optimization for value == '0'?
 private fun varintLength(value: Long): Int = VAR_INT_LENGTHS[value.countLeadingZeroBits()]
 
 /*

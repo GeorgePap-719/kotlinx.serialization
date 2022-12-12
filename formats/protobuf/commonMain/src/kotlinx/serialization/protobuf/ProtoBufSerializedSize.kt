@@ -41,7 +41,6 @@ internal open class ProtoBufSerializedSizeCalculator(
     private val proto: ProtoBuf,
     private val descriptor: SerialDescriptor
 ) : ProtobufTaggedEncoder() {
-    @Suppress("MemberVisibilityCanBePrivate")
     internal var serializedSize = -1 // memoized it
 
     override val serializersModule: SerializersModule
@@ -49,9 +48,29 @@ internal open class ProtoBufSerializedSizeCalculator(
 
     override fun shouldEncodeElementDefault(descriptor: SerialDescriptor, index: Int): Boolean = proto.encodeDefaults
 
-    override fun beginCollection(descriptor: SerialDescriptor, collectionSize: Int): CompositeEncoder {
-        TODO()
-    }
+    override fun beginCollection(descriptor: SerialDescriptor, collectionSize: Int): CompositeEncoder =
+        when (descriptor.kind) {
+            StructureKind.LIST -> {
+                val tag = currentTagOrDefault
+                if (tag.isPacked && descriptor.getElementDescriptor(0).isPackable) {
+                    TODO("not yet implemented")
+                } else {
+                    if (tag == MISSING_TAG) {
+                        serializedSize += collectionSize
+                    }
+                    if (this.descriptor.kind == StructureKind.LIST && tag != MISSING_TAG && this.descriptor != descriptor) {
+                        TODO("not yet implemented")
+                    } else {
+                        println("inside repeatedCalculator")
+                        println("size at this moment: $serializedSize") // encoding of int is ok
+                        RepeatedCalculator(proto, tag, descriptor)
+                    }
+                }
+            }
+
+            StructureKind.MAP -> TODO("not yet implemented")
+            else -> throw SerializationException("This serial kind is not supported as collection: $descriptor")
+        }
 
     /* TODO proper impl */
     override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder {
@@ -91,9 +110,10 @@ internal open class ProtoBufSerializedSizeCalculator(
 
             serializer.descriptor == ByteArraySerializer().descriptor -> computeByteArraySize(value as ByteArray)
 
-            serializer.descriptor != this.descriptor -> computeMessageSize(serializer, value)
+            //TODO: do we need to check here for list types?
+            serializer.descriptor.kind !is StructureKind.LIST &&
+                    serializer.descriptor != this.descriptor -> computeMessageSize(serializer, value)
 
-            serializer.descriptor.kind is StructureKind.LIST -> computeListSize(serializer, value)
 
             else -> serializer.serialize(this, value)
         }
@@ -165,14 +185,6 @@ internal open class ProtoBufSerializedSizeCalculator(
         serializedSize += proto.computeMessageSize(serializer, value, tag.protoId)
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun <T> computeListSize(serializer: SerializationStrategy<T>, value: T) {
-        val listT = value as List<T>
-        val serializerListT = serializer as SerializationStrategy<List<T>>
-        serializedSize += computeMessageListSize(serializerListT, listT)
-        serializedSize += listT.size
-    }
-
     /*
      * Maybe instead of aborting is ok to just return?
      */
@@ -189,6 +201,40 @@ internal open class ObjectSizeCalculator(
 ) : ProtoBufSerializedSizeCalculator(proto, descriptor)
 
 @OptIn(ExperimentalSerializationApi::class)
+private class RepeatedCalculator(
+    proto: ProtoBuf,
+    @JvmField val curTag: ProtoDesc,
+    descriptor: SerialDescriptor
+) : ObjectSizeCalculator(proto, curTag, descriptor) {
+    override fun SerialDescriptor.getTag(index: Int) = curTag
+
+    override fun encodeTaggedInt(tag: ProtoDesc, value: Int) {
+        expectMissingTag(tag)
+        serializedSize += computeSInt32SizeNoTag(value)
+    }
+
+    override fun encodeTaggedLong(tag: ProtoDesc, value: Long) {
+        expectMissingTag(tag)
+        val size = when (tag.integerType) {
+            ProtoIntegerType.DEFAULT -> computeInt64SizeNoTag(value)
+            ProtoIntegerType.SIGNED -> computeSInt64SizeNoTag(value)
+            ProtoIntegerType.FIXED -> getFixed64SizeNoTag()
+        }
+        serializedSize += size
+    }
+
+    override fun encodeTaggedByte(tag: ProtoDesc, value: Byte) {
+        expectMissingTag(tag)
+        TODO()
+    }
+
+    //TODO: needs research if this is actual the case for lists
+    private fun expectMissingTag(tag: ProtoDesc) {
+        if (tag != MISSING_TAG) throw SerializationException("tag for $tag is expected to be missing")
+    }
+}
+
+@OptIn(ExperimentalSerializationApi::class)
 private class MapRepeatedCalculator(
     proto: ProtoBuf,
     parentTag: ProtoDesc,
@@ -197,15 +243,6 @@ private class MapRepeatedCalculator(
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc =
         if (index % 2 == 0) ProtoDesc(1, (parentTag.integerType))
         else ProtoDesc(2, (parentTag.integerType))
-}
-
-@OptIn(ExperimentalSerializationApi::class)
-private class RepeatedCalculator(
-    proto: ProtoBuf,
-    @JvmField val curTag: ProtoDesc,
-    descriptor: SerialDescriptor
-) : ObjectSizeCalculator(proto, curTag, descriptor) {
-    override fun SerialDescriptor.getTag(index: Int) = curTag
 }
 
 @OptIn(ExperimentalSerializationApi::class)

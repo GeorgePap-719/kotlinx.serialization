@@ -176,4 +176,22 @@ class ProtoBufSerializedSizeTest {
         }.build()
         assertEquals(javaOuter.serializedSize, size)
     }
+
+    @Serializable
+    data class DataRepeatedIntMessage(
+        val s: Int,
+        @ProtoNumber(10)
+        val b: List<Int>
+    )
+
+    @Test
+    fun shouldCalculateRepeatedSize() {
+        val data = DataRepeatedIntMessage(1, listOf(10))
+        val size = protoBuf.getOrComputeSerializedSize(DataRepeatedIntMessage.serializer(), data)
+        val javaType = TestRepeatedIntMessage.newBuilder().apply {
+            s = 1
+            bList.add(10)
+        }.build()
+        assertEquals(javaType.serializedSize, size)
+    }
 }
