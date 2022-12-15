@@ -136,65 +136,88 @@ internal open class ProtoBufSerializedSizeCalculator(
     }
 
     override fun encodeTaggedByte(tag: ProtoDesc, value: Byte) {
-        serializedSize += computeIntSize(value.toInt(), tag.protoId, tag.integerType)
+        serializedSize += if (tag == MISSING_TAG) {
+            computeIntSizeNoTag(value.toInt(), tag.integerType)
+        } else {
+            computeIntSize(value.toInt(), tag.protoId, tag.integerType)
+        }
+
     }
 
     override fun encodeTaggedShort(tag: ProtoDesc, value: Short) {
-        requireNotMissingTag(tag)
-        serializedSize += computeIntSize(value.toInt(), tag.protoId, tag.integerType)
+        serializedSize += if (tag == MISSING_TAG) {
+            computeIntSizeNoTag(value.toInt(), tag.integerType)
+        } else {
+            computeIntSize(value.toInt(), tag.protoId, tag.integerType)
+        }
     }
 
     override fun encodeTaggedFloat(tag: ProtoDesc, value: Float) {
-        requireNotMissingTag(tag)
-        serializedSize += computeFloatSize(tag.protoId)
+        serializedSize += if (tag == MISSING_TAG) {
+            getFixed32SizeNoTag()
+        } else {
+            computeFloatSize(tag.protoId)
+        }
     }
 
     override fun encodeTaggedDouble(tag: ProtoDesc, value: Double) {
-        requireNotMissingTag(tag)
-        serializedSize += computeDoubleSize(tag.protoId)
+        serializedSize += if (tag == MISSING_TAG) {
+            getFixed64SizeNoTag()
+        } else {
+            computeDoubleSize(tag.protoId)
+        }
     }
 
     override fun encodeTaggedBoolean(tag: ProtoDesc, value: Boolean) {
-        requireNotMissingTag(tag)
-        serializedSize += computeBooleanSize(tag.protoId)
+        serializedSize += if (tag == MISSING_TAG) {
+            1
+        } else {
+            computeBooleanSize(tag.protoId)
+        }
     }
 
     override fun encodeTaggedChar(tag: ProtoDesc, value: Char) {
-        requireNotMissingTag(tag)
-        serializedSize += computeIntSize(value.code, tag.protoId, tag.integerType)
+        serializedSize += if (tag == MISSING_TAG) {
+            computeIntSizeNoTag(value.code, tag.integerType)
+        } else {
+            computeIntSize(value.code, tag.protoId, tag.integerType)
+        }
     }
 
     override fun encodeTaggedString(tag: ProtoDesc, value: String) {
-        requireNotMissingTag(tag)
-        serializedSize += computeStringSize(value, tag.protoId)
+        serializedSize += if (tag == MISSING_TAG) {
+            computeStringSizeNoTag(value)
+        } else {
+            computeStringSize(value, tag.protoId)
+        }
     }
 
     override fun encodeTaggedEnum(tag: ProtoDesc, enumDescriptor: SerialDescriptor, ordinal: Int) {
-        requireNotMissingTag(tag)
-        serializedSize += computeEnumSize(
-            extractProtoId(enumDescriptor, ordinal, zeroBasedDefault = true),
-            tag.protoId,
-            ProtoIntegerType.DEFAULT
-        )
+        if (tag == MISSING_TAG) {
+            TODO("check how is genereated")
+        } else {
+            serializedSize += computeEnumSize(
+                extractProtoId(enumDescriptor, ordinal, zeroBasedDefault = true),
+                tag.protoId,
+                ProtoIntegerType.DEFAULT
+            )
+        }
     }
 
     private fun computeByteArraySize(value: ByteArray) {
         val tag = popTagOrDefault()
-        requireNotMissingTag(tag)
-        serializedSize += computeByteArraySize(value, tag.protoId)
+        serializedSize += if (tag == MISSING_TAG) {
+            computeByteArraySizeNoTag(value)
+        } else {
+            computeByteArraySize(value, tag.protoId)
+        }
     }
 
     private fun <T> computeMessageSize(serializer: SerializationStrategy<T>, value: T) {
         val tag = popTagOrDefault()
-        requireNotMissingTag(tag)
+        //requireNotMissingTag(tag)
+        //TODO check how is generated
         serializedSize += proto.computeMessageSize(serializer, value, tag.protoId)
-    }
-
-    /*
-     * Maybe instead of aborting is ok to just return?
-     */
-    private fun requireNotMissingTag(tag: ProtoDesc) {
-        if (tag == MISSING_TAG) throw SerializationException("tag for: $tag is required")
     }
 }
 
@@ -212,31 +235,6 @@ private class RepeatedCalculator(
     descriptor: SerialDescriptor
 ) : ObjectSizeCalculator(proto, curTag, descriptor) {
     override fun SerialDescriptor.getTag(index: Int) = curTag
-
-    override fun encodeTaggedInt(tag: ProtoDesc, value: Int) {
-        expectMissingTag(tag)
-        serializedSize += computeSInt32SizeNoTag(value)
-    }
-
-    override fun encodeTaggedLong(tag: ProtoDesc, value: Long) {
-        expectMissingTag(tag)
-        val size = when (tag.integerType) {
-            ProtoIntegerType.DEFAULT -> computeInt64SizeNoTag(value)
-            ProtoIntegerType.SIGNED -> computeSInt64SizeNoTag(value)
-            ProtoIntegerType.FIXED -> getFixed64SizeNoTag()
-        }
-        serializedSize += size
-    }
-
-    override fun encodeTaggedByte(tag: ProtoDesc, value: Byte) {
-        expectMissingTag(tag)
-        TODO()
-    }
-
-    //TODO: needs research if this is actual the case for lists
-    private fun expectMissingTag(tag: ProtoDesc) {
-        if (tag != MISSING_TAG) throw SerializationException("tag for $tag is expected to be missing")
-    }
 }
 
 @OptIn(ExperimentalSerializationApi::class)
