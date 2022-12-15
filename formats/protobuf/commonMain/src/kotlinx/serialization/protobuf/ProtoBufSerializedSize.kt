@@ -120,17 +120,22 @@ internal open class ProtoBufSerializedSizeCalculator(
     }
 
     override fun encodeTaggedInt(tag: ProtoDesc, value: Int) {
-        requireNotMissingTag(tag)
-        serializedSize += computeIntSize(value, tag.protoId, tag.integerType)
+        serializedSize += if (tag == MISSING_TAG) {
+            computeIntSizeNoTag(value, tag.integerType)
+        } else {
+            computeIntSize(value, tag.protoId, tag.integerType)
+        }
     }
 
     override fun encodeTaggedLong(tag: ProtoDesc, value: Long) {
-        requireNotMissingTag(tag)
-        serializedSize += computeLongSize(value, tag.protoId, tag.integerType)
+        serializedSize += if (tag == MISSING_TAG) {
+            computeLongSizeNoTag(value, tag.integerType)
+        } else {
+            computeLongSize(value, tag.protoId, tag.integerType)
+        }
     }
 
     override fun encodeTaggedByte(tag: ProtoDesc, value: Byte) {
-        requireNotMissingTag(tag)
         serializedSize += computeIntSize(value.toInt(), tag.protoId, tag.integerType)
     }
 
@@ -289,21 +294,31 @@ internal class PackedArrayCalculator(
 @OptIn(ExperimentalSerializationApi::class)
 private fun computeLongSize(value: Long, tag: Int, format: ProtoIntegerType): Int {
     val tagSize = computeTagSize(tag)
+    return tagSize + computeLongSizeNoTag(value, format)
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+private fun computeLongSizeNoTag(value: Long, format: ProtoIntegerType): Int {
     return when (format) {
-        ProtoIntegerType.DEFAULT -> tagSize + computeInt64SizeNoTag(value)
-        ProtoIntegerType.SIGNED -> tagSize + computeSInt64SizeNoTag(value)
-        ProtoIntegerType.FIXED -> tagSize + getFixed64SizeNoTag()
+        ProtoIntegerType.DEFAULT -> computeInt64SizeNoTag(value)
+        ProtoIntegerType.SIGNED -> computeSInt64SizeNoTag(value)
+        ProtoIntegerType.FIXED -> getFixed64SizeNoTag()
     }
 }
 
 @OptIn(ExperimentalSerializationApi::class)
 private fun computeIntSize(value: Int, tag: Int, format: ProtoIntegerType): Int {
     val tagSize = computeTagSize(tag)
+    return tagSize + computeIntSizeNoTag(value, format)
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+private fun computeIntSizeNoTag(value: Int, format: ProtoIntegerType): Int {
     return when (format) {
         //TODO: ProtobufWriter actually serializes default as varint64, should we align?
-        ProtoIntegerType.DEFAULT -> tagSize + computeInt32SizeNoTag(value)
-        ProtoIntegerType.SIGNED -> tagSize + computeSInt32SizeNoTag(value)
-        ProtoIntegerType.FIXED -> tagSize + getFixed32SizeNoTag()
+        ProtoIntegerType.DEFAULT -> computeInt32SizeNoTag(value)
+        ProtoIntegerType.SIGNED -> computeSInt32SizeNoTag(value)
+        ProtoIntegerType.FIXED -> getFixed32SizeNoTag()
     }
 }
 

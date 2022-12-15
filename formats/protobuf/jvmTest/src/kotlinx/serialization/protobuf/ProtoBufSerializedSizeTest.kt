@@ -190,8 +190,9 @@ class ProtoBufSerializedSizeTest {
         val size = protoBuf.getOrComputeSerializedSize(DataRepeatedIntMessage.serializer(), data)
         val javaType = TestRepeatedIntMessage.newBuilder().apply {
             s = 1
-            bList.add(10)
+            bList.plus(10)
         }.build()
         assertEquals(javaType.serializedSize, size)
+        println("java: ${javaType.serializedSize}, kotlin: $size")
     }
 }
