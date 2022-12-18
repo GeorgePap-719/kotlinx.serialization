@@ -186,14 +186,52 @@ class ProtoBufSerializedSizeTest {
 
     @Test
     fun shouldCalculateRepeatedIntMessage() {
-        val data = DataRepeatedIntMessage(1, listOf(10))
+        val data = DataRepeatedIntMessage(1, listOf(10, 20))
         val size = protoBuf.getOrComputeSerializedSize(DataRepeatedIntMessage.serializer(), data)
         val javaType = TestRepeatedIntMessage.newBuilder().apply {
             s = 1
-            bList.plus(10)
+            bList.plus(listOf(10, 20))
         }.build()
         assertEquals(javaType.serializedSize, size)
-        println("java: ${javaType.serializedSize}, kotlin: $size")
+    }
+
+    @Serializable
+    data class DataRepeatedObjectMessage(val inner: List<DataAllTypes>)
+
+    @Test
+    fun shouldCalculateRepeatedObjectMessage() {
+        val dataInner = DataAllTypes(
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7.0F,
+            8.0,
+            true,
+            "hi"
+        )
+        val data = DataRepeatedObjectMessage(listOf(dataInner, dataInner))
+        val size = protoBuf.getOrComputeSerializedSize(DataRepeatedObjectMessage.serializer(), data)
+        val javaInner = TestAllTypes.newBuilder().apply {
+            i32 = 1
+            si32 = 2
+            f32 = 3
+            i64 = 4
+            si64 = 5
+            f64 = 6
+            f = 7.0F
+            d = 8.0
+            b = true
+            s = "hi"
+        }.build()
+        val javaType = TestRepeatedObjectMessage.newBuilder().apply {
+            addAllInner(listOf(javaInner, javaInner))
+//            addInner(javaInner)
+//            addInner(javaInner)
+        }.build()
+        assertEquals(javaType.serializedSize, size)
     }
 }
 
