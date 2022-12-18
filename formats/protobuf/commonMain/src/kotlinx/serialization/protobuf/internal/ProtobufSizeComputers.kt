@@ -1,5 +1,7 @@
 package kotlinx.serialization.protobuf.internal
 
+internal fun computeEnumSizeNoTag(value: Int): Int = computeInt32SizeNoTag(value)
+
 internal fun computeByteArraySizeNoTag(value: ByteArray): Int = computeLengthDelimitedFieldSize(value.size)
 
 internal fun computeStringSizeNoTag(value: String): Int {
@@ -74,17 +76,6 @@ private const val FIXED64_SIZE = 8
 
 internal fun computeTagSize(protoId: Int): Int = computeUInt32SizeNoTag(makeTag(protoId, 0))
 private fun makeTag(protoId: Int, wireType: Int): Int = protoId shl TAG_TYPE_BITS or wireType
-
-private fun varintLength(value: Long): Int = VAR_INT_LENGTHS[value.countLeadingZeroBits()]
-
-/*
- * Map number of leading zeroes -> varint size
- * See the explanation in this blogpost: https://richardstartin.github.io/posts/dont-use-protobuf-for-telemetry
- */
-//TODO: align with ProtobufWriter companion.object
-private val VAR_INT_LENGTHS = IntArray(65) {
-    (63 - it) / 7
-}
 
 // stream utils
 

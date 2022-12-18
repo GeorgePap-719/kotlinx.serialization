@@ -87,7 +87,7 @@ internal open class ProtoBufSerializedSizeCalculator(
 
             StructureKind.CLASS, StructureKind.OBJECT, is PolymorphicKind -> {
                 val tag = currentTagOrDefault
-                if (tag == MISSING_TAG && descriptor == this.descriptor) this //TODO: which exactly is this scenario?
+                if (tag == MISSING_TAG && descriptor == this.descriptor) this
                 else ObjectSizeCalculator(proto, currentTagOrDefault, descriptor)
             }
 
@@ -193,10 +193,10 @@ internal open class ProtoBufSerializedSizeCalculator(
     }
 
     override fun encodeTaggedEnum(tag: ProtoDesc, enumDescriptor: SerialDescriptor, ordinal: Int) {
-        if (tag == MISSING_TAG) {
-            TODO("check how is genereated")
+        serializedSize += if (tag == MISSING_TAG) {
+            computeEnumSizeNoTag(extractProtoId(enumDescriptor, ordinal, zeroBasedDefault = true))
         } else {
-            serializedSize += computeEnumSize(
+            computeEnumSize(
                 extractProtoId(enumDescriptor, ordinal, zeroBasedDefault = true),
                 tag.protoId,
                 ProtoIntegerType.DEFAULT
@@ -215,8 +215,6 @@ internal open class ProtoBufSerializedSizeCalculator(
 
     private fun <T> computeMessageSize(serializer: SerializationStrategy<T>, value: T) {
         val tag = popTagOrDefault()
-        //requireNotMissingTag(tag)
-        //TODO check how is generated
         serializedSize += proto.computeMessageSize(serializer, value, tag.protoId)
     }
 }

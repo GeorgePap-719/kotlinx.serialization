@@ -185,7 +185,7 @@ class ProtoBufSerializedSizeTest {
     )
 
     @Test
-    fun shouldCalculateRepeatedSize() {
+    fun shouldCalculateRepeatedIntMessage() {
         val data = DataRepeatedIntMessage(1, listOf(10))
         val size = protoBuf.getOrComputeSerializedSize(DataRepeatedIntMessage.serializer(), data)
         val javaType = TestRepeatedIntMessage.newBuilder().apply {
@@ -196,3 +196,19 @@ class ProtoBufSerializedSizeTest {
         println("java: ${javaType.serializedSize}, kotlin: $size")
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
