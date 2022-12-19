@@ -42,6 +42,10 @@ internal open class ProtoBufSerializedSizeCalculator(
     internal val descriptor: SerialDescriptor
 ) : ProtobufTaggedEncoder() {
     internal var serializedSize = -1 // memoized it
+        set(value) {
+            println("updating size with $value")
+            field = value
+        }
 
     override val serializersModule: SerializersModule
         get() = proto.serializersModule
@@ -56,13 +60,15 @@ internal open class ProtoBufSerializedSizeCalculator(
                     TODO("not yet implemented")
                 } else {
                     if (tag == MISSING_TAG) {
+                        if (serializedSize == -1) serializedSize = 0
+                        println("adding collectionSize $collectionSize")
+                        println("$serializedSize")
                         serializedSize += collectionSize
                     }
                     if (this.descriptor.kind == StructureKind.LIST && tag != MISSING_TAG && this.descriptor != descriptor) {
                         TODO("not yet implemented")
                     } else {
                         println("inside repeatedCalculator")
-                        println("size at this moment: $serializedSize")
                         RepeatedCalculator(proto, tag, descriptor)
                     }
                 }
@@ -74,14 +80,15 @@ internal open class ProtoBufSerializedSizeCalculator(
 
     /* TODO proper impl */
     override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder {
-        serializedSize = 0 // reset serialized-size
+        if (serializedSize == -1) serializedSize = 0
+        println("Beginning structure")
+//        serializedSize = 0 // reset serialized-size
         // delegate to proper calculator, e.g. class,map,list
         return when (descriptor.kind) {
             StructureKind.LIST -> {
                 if (descriptor.getElementDescriptor(0).isPackable && currentTagOrDefault.isPacked) {
                     PackedArrayCalculator(proto, currentTagOrDefault, descriptor)
                 } else {
-                    println("inside beginStructure()")
                     RepeatedCalculator(proto, currentTagOrDefault, descriptor)
                 }
             }
@@ -98,6 +105,7 @@ internal open class ProtoBufSerializedSizeCalculator(
     }
 
     override fun endEncode(descriptor: SerialDescriptor) {
+        println("updating cache with size: $serializedSize for: $descriptor")
         memoizedSerializedSizes.put(descriptor, serializedSize)
     }
 
@@ -114,7 +122,7 @@ internal open class ProtoBufSerializedSizeCalculator(
             //TODO: do we need to check here for list types?
 //            serializer.descriptor.kind !is StructureKind.LIST &&
             serializer.descriptor.kind is StructureKind.LIST &&
-                    serializer.descriptor != this.descriptor -> computeRepeatedMessageSize(serializer, value)
+                    serializer.descriptor != this.descriptor -> computeMessageSize(serializer, value)
 
             serializer.descriptor != this.descriptor -> computeMessageSize(serializer, value)
 
@@ -218,10 +226,17 @@ internal open class ProtoBufSerializedSizeCalculator(
 
     private fun <T> computeMessageSize(serializer: SerializationStrategy<T>, value: T) {
         val tag = popTagOrDefault()
-        proto.computeMessageSize(serializer, value, tag.protoId)
+        if (tag == MISSING_TAG) {
+            val size = proto.computeMessageSize(serializer, value, tag.protoId)
+            println("size: $size")
+        } else {
+            val size = proto.computeMessageSize(serializer, value, tag.protoId)
+            println("size: $size")
+        }
+
         // retrieve memoized size instead of getting it from `computeMessageSize` since may not bring correct
         // results at this stage.
-        serializedSize = memoizedSerializedSizes.get(serializer.descriptor)
+        serializedSize += memoizedSerializedSizes.get(serializer.descriptor)
             ?: error("cannot be empty at this stage")
     }
 
@@ -237,7 +252,7 @@ internal open class ProtoBufSerializedSizeCalculator(
 @OptIn(ExperimentalSerializationApi::class)
 internal open class ObjectSizeCalculator(
     proto: ProtoBuf,
-    @Suppress("unused") @JvmField protected val parentTag: ProtoDesc,
+    @JvmField protected val parentTag: ProtoDesc,
     descriptor: SerialDescriptor
 ) : ProtoBufSerializedSizeCalculator(proto, descriptor)
 
@@ -382,13 +397,16 @@ private fun <T> ProtoBuf.computeMessageSizeNoTag(serializer: SerializationStrate
 
 @OptIn(ExperimentalSerializationApi::class)
 private fun <T> ProtoBuf.computeSerializedMessageSize(serializer: SerializationStrategy<T>, value: T): Int {
-    val memoizedSize = memoizedSerializedSizes.get(serializer.descriptor)
-    return if (memoizedSize != null) {
-        memoizedSize
-    } else {
-        val calculator = ProtoBufSerializedSizeCalculator(this, serializer.descriptor)
-        calculator.encodeSerializableValue(serializer, value)
-//        println("descriptor of this ${calculator.descriptor}")
-        calculator.serializedSize
-    }
+//    val memoizedSize = memoizedSerializedSizes.get(serializer.descriptor)
+//    return if (memoizedSize != null) {
+//        memoizedSize
+//    } else {
+//
+//    }
+    val calculator = ProtoBufSerializedSizeCalculator(this, serializer.descriptor)
+    println("calculating size for ${serializer.descriptor}")
+    calculator.encodeSerializableValue(serializer, value)
+    println("serializedSize: ${calculator.serializedSize}")
+    println("cache state ${memoizedSerializedSizes.get(serializer.descriptor)}")
+    return calculator.serializedSize
 }
