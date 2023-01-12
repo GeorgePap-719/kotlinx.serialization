@@ -67,13 +67,16 @@ internal open class ProtoBufSerializedSizeCalculator(
                     serializedSize += collectionSize
                     if (tag == MISSING_TAG) {
                         //TODO
-
                     }
                     if (this.descriptor.kind == StructureKind.LIST && tag != MISSING_TAG && this.descriptor != descriptor) {
                         TODO("not yet implemented")
                     } else {
-                        println("inside RepeatedCalculator")
-                        RepeatedCalculator(proto, MISSING_TAG, descriptor) //TODO: check it
+                        println("before: RepeatedCalculator")
+                        if (this is RepeatedCalculator) {
+                            this
+                        } else {
+                            RepeatedCalculator(proto, MISSING_TAG, descriptor) //TODO: check it
+                        }
                     }
                 }
             }
@@ -139,9 +142,10 @@ internal open class ProtoBufSerializedSizeCalculator(
                 computeMessageSize(serializer, value)
             }
 
-//            serializer.descriptor != this.descriptor &&
-//                    serializer.descriptor.kind is StructureKind.LIST
-//            -> computeRepeatedPrimitive(serializer, value)
+            serializer.descriptor != this.descriptor &&
+                    serializer.descriptor.kind is StructureKind.LIST //&&
+                //this is RepeatedCalculator
+            -> computeRepeatedPrimitive(serializer, value)
 
             else -> {
                 println("--- inside serializer.serialize with desc:${serializer.descriptor} ---")
@@ -266,9 +270,9 @@ internal open class ProtoBufSerializedSizeCalculator(
     }
 
     private fun <T> computeRepeatedPrimitive(serializer: SerializationStrategy<T>, value: T) {
-        println("computing size for: ${serializer.descriptor}")
-        val tag = popTagOrDefault()
-        val calculator = RepeatedCalculator(proto, tag, serializer.descriptor)
+        println("inside serializer.descriptor.kind is StructureKind.LIST with desc: ${serializer.descriptor}")
+//        val tag = popTagOrDefault()
+        val calculator = RepeatedCalculator(proto, MISSING_TAG, serializer.descriptor)
         calculator.encodeSerializableValue(serializer, value)
         serializedSize += calculator.serializedSize
     }
@@ -287,8 +291,11 @@ private class RepeatedCalculatorNoEndEncode(
     @JvmField val curTag: ProtoDesc,
     descriptor: SerialDescriptor
 ) : ObjectSizeCalculator(proto, curTag, descriptor) {
+    init {
+        serializedSize = 0
+    }
+
     override fun SerialDescriptor.getTag(index: Int) = curTag
-    override fun endEncode(descriptor: SerialDescriptor) {}
 }
 
 @OptIn(ExperimentalSerializationApi::class)
