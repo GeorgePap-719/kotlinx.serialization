@@ -61,10 +61,11 @@ internal open class ProtoBufSerializedSizeCalculator(
                     TODO("not yet implemented")
                 } else {
                     if (serializedSize == -1) serializedSize = 0
-                    println("adding collectionSize $collectionSize")
-                    println("before adding: $serializedSize")
-                    //TODO: this should be somehow subtracted when we are not dealing with primitives
-                    serializedSize += collectionSize
+                    if (descriptor.isChildDescriptorPrimitive()) {
+                        println("adding collectionSize $collectionSize")
+                        println("before adding: $serializedSize")
+                        serializedSize += collectionSize
+                    }
                     if (tag == MISSING_TAG) {
                         //TODO
                     }
@@ -449,4 +450,13 @@ private fun <T> ProtoBuf.computeSerializedMessageSize(serializer: SerializationS
     println("calculator.serializedSize: ${calculator.serializedSize}")
     println("cache state ${memoizedSerializedSizes.get(serializer.descriptor)}")
     return calculator.serializedSize
+}
+
+// helpers
+
+@OptIn(ExperimentalSerializationApi::class)
+private fun SerialDescriptor.isChildDescriptorPrimitive(): Boolean {
+    val child = runCatching { this.getElementDescriptor(0) }.getOrNull()
+        ?: error("child is not retrievable for list descriptor:$this")
+    return child.kind is PrimitiveKind
 }
