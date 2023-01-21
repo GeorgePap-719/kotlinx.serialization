@@ -213,7 +213,7 @@ class ProtoBufSerializedSizeTest {
             true,
             "hi"
         )
-        val data = DataRepeatedObjectMessage(listOf(dataInner))
+        val data = DataRepeatedObjectMessage(listOf(dataInner, dataInner, dataInner))
         val size = protoBuf.getOrComputeSerializedSize(DataRepeatedObjectMessage.serializer(), data)
         val javaInner = TestAllTypes.newBuilder().apply {
             i32 = 1
@@ -228,9 +228,7 @@ class ProtoBufSerializedSizeTest {
             s = "hi"
         }.build()
         val javaType = TestRepeatedObjectMessage.newBuilder().apply {
-            addAllInner(listOf(javaInner))
-//            addInner(javaInner)
-//            addInner(javaInner)
+            addAllInner(listOf(javaInner, javaInner, javaInner))
         }.build()
         assertEquals(javaType.serializedSize, size)
     }
