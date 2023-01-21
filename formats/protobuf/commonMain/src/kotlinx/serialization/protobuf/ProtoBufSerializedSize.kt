@@ -147,13 +147,11 @@ internal open class ProtoBufSerializedSizeCalculator(
             serializer.descriptor != this.descriptor &&
                     serializer.descriptor.kind is StructureKind.LIST &&
                     serializer.descriptor.isChildDescriptorPrimitive()
-                //this is RepeatedCalculator
             -> computeRepeatedPrimitive(serializer, value)
 
             serializer.descriptor != this.descriptor &&
                     serializer.descriptor.kind is StructureKind.LIST &&
-                    !serializer.descriptor.isChildDescriptorPrimitive()
-                //this is RepeatedCalculator
+                    serializer.descriptor.isNotChildDescriptorPrimitive()
             -> computeRepeatedMessageSize(serializer, value)
 
 
@@ -472,3 +470,5 @@ private fun SerialDescriptor.isChildDescriptorPrimitive(): Boolean {
         ?: error("child is not retrievable for list descriptor:$this")
     return child.kind is PrimitiveKind
 }
+
+private fun SerialDescriptor.isNotChildDescriptorPrimitive(): Boolean = !isChildDescriptorPrimitive()
