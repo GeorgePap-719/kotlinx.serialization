@@ -150,6 +150,13 @@ internal open class ProtoBufSerializedSizeCalculator(
                 //this is RepeatedCalculator
             -> computeRepeatedPrimitive(serializer, value)
 
+            serializer.descriptor != this.descriptor &&
+                    serializer.descriptor.kind is StructureKind.LIST &&
+                    !serializer.descriptor.isChildDescriptorPrimitive()
+                //this is RepeatedCalculator
+            -> computeRepeatedMessageSize(serializer, value)
+
+
             else -> {
                 println("--- inside serializer.serialize with desc:${serializer.descriptor} ---")
                 serializer.serialize(this, value)
@@ -265,13 +272,12 @@ internal open class ProtoBufSerializedSizeCalculator(
 //            ?: error("cannot be empty at this stage")
     }
 
-    // not used right now
     private fun <T> computeRepeatedMessageSize(serializer: SerializationStrategy<T>, value: T) {
-        val tag = currentTagOrDefault
-        serializedSize += proto.computeMessageSize(serializer, value, tag.protoId)
-        // retrieve memoized size
-        serializedSize += memoizedSerializedSizes.get(serializer.descriptor)
-            ?: error("cannot be empty at this stage")
+        println("inside computeRepeatedObject with desc: ${serializer.descriptor}")
+        val tag = popTag() // tag is required for calculating repeated objects
+        val calculator = RepeatedCalculator(proto, tag, serializer.descriptor)
+        calculator.encodeSerializableValue(serializer, value)
+        serializedSize += calculator.serializedSize
     }
 
     private fun <T> computeRepeatedPrimitive(serializer: SerializationStrategy<T>, value: T) {
