@@ -234,21 +234,73 @@ class ProtoBufSerializedSizeTest {
     }
 
     @Serializable
-    enum class Coffee {
-        Americano,
-        Latte,
-        Capuccino
+    data class DataEnumMessage(val a: Coffee) {
+        enum class Coffee {
+            Americano,
+            Latte,
+            Capuccino
+        }
     }
-
-    @Serializable
-    data class DataEnumMessage(val a: Coffee)
 
     @Test
     fun shouldCalculateEnumMessage() {
-        val data = DataEnumMessage(Coffee.Americano)
+        val data = DataEnumMessage(DataEnumMessage.Coffee.Americano)
         val size = protoBuf.getOrComputeSerializedSize(DataEnumMessage.serializer(), data)
         val java = TestEnum.newBuilder().apply {
             a = TestEnum.Coffee.Americano
+        }.build()
+        assertEquals(java.serializedSize, size)
+    }
+
+    @Serializable
+    enum class DataEnumWithIds {
+        @ProtoNumber(10)
+        First,
+
+        @ProtoNumber(20)
+        Second
+    }
+
+    @Serializable
+    data class DataEnumHolderMessage(@ProtoNumber(5) val s: DataEnumWithIds)
+
+    @Test
+    fun shouldCalculateEnumHolderMessage() {
+        val data = DataEnumHolderMessage(DataEnumWithIds.Second)
+        val size = protoBuf.getOrComputeSerializedSize(DataEnumHolderMessage.serializer(), data)
+        val java = EnumHolder.newBuilder().apply { a = TestEnumWithIds.Second }.build()
+        assertEquals(java.serializedSize, size)
+    }
+
+    @Test
+    fun shouldCalculateMapMessage() {
+        //TODO
+    }
+
+    @Serializable
+    data class DataWithOptionals(
+        val a: Int? = null,
+        val b: String? = null,
+        val c: Position? = null,
+        val d: Int = 9,
+        val e: List<Int>
+    ) {
+        enum class Position {
+            FIRST,
+            SECOND
+        }
+    }
+
+    @Test
+    fun shouldCalculateWithOptionalsMessage() {
+        val data = DataWithOptionals(
+            c = DataWithOptionals.Position.SECOND,
+            e = listOf(10, 10, 10)
+        )
+        val size = protoBuf.getOrComputeSerializedSize(DataWithOptionals.serializer(), data)
+        val java = MessageWithOptionals.newBuilder().apply {
+            c = MessageWithOptionals.Position.SECOND
+            addAllE(listOf(10, 10, 10))
         }.build()
         assertEquals(java.serializedSize, size)
     }
