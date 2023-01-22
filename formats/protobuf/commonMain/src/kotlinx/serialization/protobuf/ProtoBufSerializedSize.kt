@@ -236,6 +236,7 @@ internal open class ProtoBufSerializedSizeCalculator(
     }
 
     override fun encodeTaggedEnum(tag: ProtoDesc, enumDescriptor: SerialDescriptor, ordinal: Int) {
+        println("in encodeTaggedEnum for tag: $tag")
         serializedSize += if (tag == MISSING_TAG) {
             computeEnumSizeNoTag(extractProtoId(enumDescriptor, ordinal, zeroBasedDefault = true))
         } else {
@@ -428,10 +429,7 @@ private fun computeStringSize(value: String, tag: Int): Int {
 }
 
 @OptIn(ExperimentalSerializationApi::class)
-private fun computeEnumSize(value: Int, tag: Int, format: ProtoIntegerType): Int {
-    val tagSize = computeTagSize(tag)
-    return tagSize + computeIntSize(value, tag, format)
-}
+private fun computeEnumSize(value: Int, tag: Int, format: ProtoIntegerType): Int = computeIntSize(value, tag, format)
 
 private fun computeByteArraySize(value: ByteArray, tag: Int): Int {
     val tagSize = computeTagSize(tag)

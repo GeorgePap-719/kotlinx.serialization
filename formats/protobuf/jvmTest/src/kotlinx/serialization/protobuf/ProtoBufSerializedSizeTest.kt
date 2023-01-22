@@ -232,6 +232,26 @@ class ProtoBufSerializedSizeTest {
         }.build()
         assertEquals(javaType.serializedSize, size)
     }
+
+    @Serializable
+    enum class Coffee {
+        Americano,
+        Latte,
+        Capuccino
+    }
+
+    @Serializable
+    data class DataEnumMessage(val a: Coffee)
+
+    @Test
+    fun shouldCalculateEnumMessage() {
+        val data = DataEnumMessage(Coffee.Americano)
+        val size = protoBuf.getOrComputeSerializedSize(DataEnumMessage.serializer(), data)
+        val java = TestEnum.newBuilder().apply {
+            a = TestEnum.Coffee.Americano
+        }.build()
+        assertEquals(java.serializedSize, size)
+    }
 }
 
 
