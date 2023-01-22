@@ -272,9 +272,46 @@ class ProtoBufSerializedSizeTest {
         assertEquals(java.serializedSize, size)
     }
 
+    @Serializable
+    data class DataMap(val stringMap: Map<String, String>, val intObjectMap: Map<Int, DataAllTypes>)
+
     @Test
     fun shouldCalculateMapMessage() {
-        //TODO
+        val dataInner = DataAllTypes(
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7.0F,
+            8.0,
+            true,
+            "hi"
+        )
+        val data = DataMap(
+            mapOf("1" to "hello", "2" to "world"),
+            mapOf(1 to dataInner)
+        )
+        val size = protoBuf.getOrComputeSerializedSize(DataMap.serializer(), data)
+
+        val java = TestMap.newBuilder().apply {
+            val javaInner = TestAllTypes.newBuilder().apply {
+                i32 = 1
+                si32 = 2
+                f32 = 3
+                i64 = 4
+                si64 = 5
+                f64 = 6
+                f = 7.0F
+                d = 8.0
+                b = true
+                s = "hi"
+            }.build()
+            putAllStringMap(mapOf("1" to "hello", "2" to "world"))
+            putAllIntObjectMap(mapOf(1 to javaInner))
+        }.build()
+        assertEquals(java.serializedSize, size)
     }
 
     @Serializable

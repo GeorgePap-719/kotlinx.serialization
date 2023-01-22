@@ -4,6 +4,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.builtins.ByteArraySerializer
+import kotlinx.serialization.builtins.SetSerializer
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.CompositeEncoder
 import kotlinx.serialization.internal.MapLikeSerializer
@@ -67,7 +68,8 @@ internal open class ProtoBufSerializedSizeCalculator(
                         serializedSize += collectionSize
                     }
                     if (tag == MISSING_TAG) {
-                        //TODO
+                        //TODO: this probably can be removed since the above solution calculates
+                        // collection size
                     }
                     if (this.descriptor.kind == StructureKind.LIST && tag != MISSING_TAG && this.descriptor != descriptor) {
                         TODO("not yet implemented")
@@ -127,7 +129,7 @@ internal open class ProtoBufSerializedSizeCalculator(
         println("\n ---- encodeSerializableValue for ${serializer.descriptor} ---- \n")
         return when {
             serializer is MapLikeSerializer<*, *, *, *> -> {
-                TODO("needs research.")
+                serializeMap(serializer as SerializationStrategy<T>, value)
             }
 
             serializer.descriptor == ByteArraySerializer().descriptor -> computeByteArraySize(value as ByteArray)
@@ -287,6 +289,15 @@ internal open class ProtoBufSerializedSizeCalculator(
         val calculator = RepeatedCalculator(proto, MISSING_TAG, serializer.descriptor)
         calculator.encodeSerializableValue(serializer, value)
         serializedSize += calculator.serializedSize
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> serializeMap(serializer: SerializationStrategy<T>, value: T) {
+        // encode maps as collection of map entries, not merged collection of key-values
+        val casted = (serializer as MapLikeSerializer<Any?, Any?, T, *>)
+        val mapEntrySerial =
+            kotlinx.serialization.builtins.MapEntrySerializer(casted.keySerializer, casted.valueSerializer)
+        SetSerializer(mapEntrySerial).serialize(this, (value as Map<*, *>).entries)
     }
 }
 
