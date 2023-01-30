@@ -4,6 +4,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.builtins.ByteArraySerializer
+import kotlinx.serialization.builtins.MapEntrySerializer
 import kotlinx.serialization.builtins.SetSerializer
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.CompositeEncoder
@@ -19,6 +20,7 @@ internal expect fun createSerializedSizeCache(): SerializedSizeCache
 
 //TODO: add kdoc
 // notes: memoization can probably be done with a concurrent map holding descriptor and serializedSize.
+// note: probably this memoization has to be redesigned.
 internal interface SerializedSizeCache {
     fun get(key: SerialDescriptor): Int?
     fun put(key: SerialDescriptor, size: Int)
@@ -84,7 +86,7 @@ internal open class ProtoBufSerializedSizeCalculator(
                 }
             }
 
-            StructureKind.MAP -> TODO("not yet implemented")
+            StructureKind.MAP -> MapRepeatedCalculator(proto, currentTagOrDefault, descriptor)
             else -> throw SerializationException("This serial kind is not supported as collection: $descriptor")
         }
     }
@@ -129,7 +131,7 @@ internal open class ProtoBufSerializedSizeCalculator(
         println("\n ---- encodeSerializableValue for ${serializer.descriptor} ---- \n")
         return when {
             serializer is MapLikeSerializer<*, *, *, *> -> {
-                serializeMap(serializer as SerializationStrategy<T>, value)
+                computeMapSize(serializer as SerializationStrategy<T>, value)
             }
 
             serializer.descriptor == ByteArraySerializer().descriptor -> computeByteArraySize(value as ByteArray)
@@ -260,31 +262,29 @@ internal open class ProtoBufSerializedSizeCalculator(
     }
 
     private fun <T> computeMessageSize(serializer: SerializationStrategy<T>, value: T) {
-//        if (serializedSize == -1) serializedSize = 0
         val tag = currentTagOrDefault
         println("\n ---- tag:$tag in computeMessageSize ---- \n")
         val size = proto.computeMessageSize(serializer, value, tag.protoId)
         println("result: $size for ${serializer.descriptor}")
         serializedSize += size
-
-        // retrieve memoized size instead of getting it from `computeMessageSize` since may not bring correct
-        // results at this stage.
-//        serializedSize += memoizedSerializedSizes.get(serializer.descriptor)
-//            ?: error("cannot be empty at this stage")
     }
 
     private fun <T> computeRepeatedMessageSize(serializer: SerializationStrategy<T>, value: T) {
-        println("inside computeRepeatedObject with desc: ${serializer.descriptor}")
-        val tag = popTag() // tag is required for calculating repeated objects
-        val calculator = RepeatedCalculator(proto, tag, serializer.descriptor)
+        println("inside computeRepeatedObject with desc: ${serializer.descriptor} and tag:$currentTagOrDefault")
+        //TODO: tag info
+        // at this point we should have at least two tags inside stack, imo. needs research
+        val tag = popTagOrDefault() // tag is required for calculating repeated objects
+        val calculator = if (tag == MISSING_TAG) {
+            NestedRepeatedCalculator(proto, tag, serializer.descriptor, serializedSize)
+        } else {
+            RepeatedCalculator(proto, tag, serializer.descriptor)
+        }
         calculator.encodeSerializableValue(serializer, value)
         serializedSize += calculator.serializedSize
     }
 
     private fun <T> computeRepeatedPrimitive(serializer: SerializationStrategy<T>, value: T) {
         println("inside computeRepeatedPrimitive with desc: ${serializer.descriptor}")
-//        val tag = currentTagOrDefault
-//        println("\n ---- tag:$tag in computeRepeatedPrimitive ---- \n")
         // repeated primitives should not be calculated with their tag
         val calculator = RepeatedCalculator(proto, MISSING_TAG, serializer.descriptor)
         calculator.encodeSerializableValue(serializer, value)
@@ -292,12 +292,20 @@ internal open class ProtoBufSerializedSizeCalculator(
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun <T> serializeMap(serializer: SerializationStrategy<T>, value: T) {
+    private fun <T> computeMapSize(serializer: SerializationStrategy<T>, value: T) {
         // encode maps as collection of map entries, not merged collection of key-values
+        println("\n ---- encoding as Map with tag: ${currentTag}---- \n")
         val casted = (serializer as MapLikeSerializer<Any?, Any?, T, *>)
-        val mapEntrySerial =
-            kotlinx.serialization.builtins.MapEntrySerializer(casted.keySerializer, casted.valueSerializer)
+        val mapEntrySerial = MapEntrySerializer(casted.keySerializer, casted.valueSerializer)
+        // this probably is ok, the problem is probably deeper in chain call
         SetSerializer(mapEntrySerial).serialize(this, (value as Map<*, *>).entries)
+//        computeRepeatedMessageSize(setSerializer, (value as Map<*, *>).entries)
+//        val tag = currentTag
+
+//        val calculator = MapRepeatedCalculator(proto, tag, serializer.descriptor)
+//        // maybe encodeElement here
+//        calculator.encodeSerializableValue(setSerializer, (value as Map<*, *>).entries)
+//        serializedSize += calculator.serializedSize
     }
 }
 
@@ -340,6 +348,10 @@ private class MapRepeatedCalculator(
     parentTag: ProtoDesc,
     descriptor: SerialDescriptor
 ) : ObjectSizeCalculator(proto, parentTag, descriptor) {
+    init {
+        serializedSize = 0
+    }
+
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc =
         if (index % 2 == 0) ProtoDesc(1, (parentTag.integerType))
         else ProtoDesc(2, (parentTag.integerType))
@@ -350,9 +362,15 @@ internal open class NestedRepeatedCalculator(
     proto: ProtoBuf,
     @JvmField val curTag: ProtoDesc,
     descriptor: SerialDescriptor,
+    var _serializedSize: Int
 ) : ObjectSizeCalculator(proto, curTag, descriptor) {
     // all elements always have id = 1
     override fun SerialDescriptor.getTag(index: Int) = ProtoDesc(1, ProtoIntegerType.DEFAULT)
+
+    override fun endEncode(descriptor: SerialDescriptor) {
+        _serializedSize += serializedSize
+        super.endEncode(descriptor)
+    }
 }
 
 /* TODO */
