@@ -80,7 +80,10 @@ internal open class ProtoBufSerializedSizeCalculator(
                         if (this is RepeatedCalculator) {
                             this
                         } else {
-                            RepeatedCalculator(proto, MISSING_TAG, descriptor) //TODO: check it
+                            println("before NestedRepeatedCalculator")
+                            this //TODO: follow this detail
+//                            NestedRepeatedCalculator(proto, MISSING_TAG, descriptor, serializedSize)
+//                            RepeatedCalculator(proto, MISSING_TAG, descriptor) //TODO: check it
                         }
                     }
                 }
@@ -115,7 +118,12 @@ internal open class ProtoBufSerializedSizeCalculator(
 //                else ObjectSizeCalculator(proto, currentTagOrDefault, descriptor)
             }
 
-            StructureKind.MAP -> MapRepeatedCalculator(proto, currentTagOrDefault, descriptor)
+            StructureKind.MAP -> {
+                println("--- inside struct map ---")
+                this //TODO: follow this lead
+//                NestedMapRepeatedCalculator(proto, currentTagOrDefault, descriptor, serializedSize)
+            }
+
             else -> throw SerializationException("This serial kind is not supported as structure: $descriptor")
         }
     }
@@ -333,7 +341,7 @@ private class RepeatedCalculatorNoEndEncode(
 private class RepeatedCalculator(
     proto: ProtoBuf,
     @JvmField val curTag: ProtoDesc,
-    descriptor: SerialDescriptor
+    descriptor: SerialDescriptor,
 ) : ObjectSizeCalculator(proto, curTag, descriptor) {
     init {
         serializedSize = 0
@@ -350,6 +358,22 @@ private class MapRepeatedCalculator(
 ) : ObjectSizeCalculator(proto, parentTag, descriptor) {
     init {
         serializedSize = 0
+    }
+
+    override fun SerialDescriptor.getTag(index: Int): ProtoDesc =
+        if (index % 2 == 0) ProtoDesc(1, (parentTag.integerType))
+        else ProtoDesc(2, (parentTag.integerType))
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+private class NestedMapRepeatedCalculator(
+    proto: ProtoBuf,
+    parentTag: ProtoDesc,
+    descriptor: SerialDescriptor,
+    _serializedSize: Int
+) : ObjectSizeCalculator(proto, parentTag, descriptor) {
+    init {
+        serializedSize = _serializedSize
     }
 
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc =
