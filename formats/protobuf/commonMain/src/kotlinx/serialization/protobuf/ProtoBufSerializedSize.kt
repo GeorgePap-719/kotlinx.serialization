@@ -26,6 +26,8 @@ internal interface SerializedSizeCache {
     fun put(key: SerialDescriptor, size: Int)
 }
 
+private data class SerializedSizeWrapper(var value: Int)
+
 //TODO: probably this is better to be put in diff kt file.
 @OptIn(ExperimentalSerializationApi::class)
 public fun <T> ProtoBuf.getOrComputeSerializedSize(serializer: SerializationStrategy<T>, value: T): Int {
@@ -281,8 +283,15 @@ internal open class ProtoBufSerializedSizeCalculator(
         println("inside computeRepeatedObject with desc: ${serializer.descriptor} and tag:$currentTagOrDefault")
         //TODO: tag info
         // at this point we should have at least two tags inside stack, imo. needs research
-        val tag = popTagOrDefault() // tag is required for calculating repeated objects
+        // closer..
+        val tag = if (this is MapRepeatedCalculator) {
+            popTagOrDefault()
+        } else {
+            popTag()
+        }
+//        val tag = currentTagOrDefault // tag is required for calculating repeated objects
         val calculator = if (tag == MISSING_TAG) {
+            println("Inside computeRepeatedObject with MISSING_TAG")
             NestedRepeatedCalculator(proto, tag, serializer.descriptor, serializedSize)
         } else {
             RepeatedCalculator(proto, tag, serializer.descriptor)
@@ -306,12 +315,13 @@ internal open class ProtoBufSerializedSizeCalculator(
         val casted = (serializer as MapLikeSerializer<Any?, Any?, T, *>)
         val mapEntrySerial = MapEntrySerializer(casted.keySerializer, casted.valueSerializer)
         // this probably is ok, the problem is probably deeper in chain call
-        SetSerializer(mapEntrySerial).serialize(this, (value as Map<*, *>).entries)
+        /*val setSerializer = */ SetSerializer(mapEntrySerial).serialize(this, (value as Map<*, *>).entries)
 //        computeRepeatedMessageSize(setSerializer, (value as Map<*, *>).entries)
 //        val tag = currentTag
 
 //        val calculator = MapRepeatedCalculator(proto, tag, serializer.descriptor)
-//        // maybe encodeElement here
+        // maybe encodeElement here
+//        calculator.encodeSerializableElement(setSerializer.descriptor, tag.protoId, serializer, value)
 //        calculator.encodeSerializableValue(setSerializer, (value as Map<*, *>).entries)
 //        serializedSize += calculator.serializedSize
     }
@@ -370,15 +380,20 @@ private class NestedMapRepeatedCalculator(
     proto: ProtoBuf,
     parentTag: ProtoDesc,
     descriptor: SerialDescriptor,
-    _serializedSize: Int
+    var _serializedSize: Int
 ) : ObjectSizeCalculator(proto, parentTag, descriptor) {
     init {
-        serializedSize = _serializedSize
+        serializedSize = 0
     }
 
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc =
         if (index % 2 == 0) ProtoDesc(1, (parentTag.integerType))
         else ProtoDesc(2, (parentTag.integerType))
+
+    override fun endEncode(descriptor: SerialDescriptor) {
+        _serializedSize = serializedSize
+        super.endEncode(descriptor)
+    }
 }
 
 @OptIn(ExperimentalSerializationApi::class)
