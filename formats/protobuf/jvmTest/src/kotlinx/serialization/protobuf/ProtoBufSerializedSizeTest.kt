@@ -342,19 +342,3 @@ class ProtoBufSerializedSizeTest {
         assertEquals(java.serializedSize, size)
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
