@@ -86,8 +86,8 @@ internal open class ProtoBufSerializedSizeCalculator(
                             this
 //                            RepeatedCalculator(proto, tag, descriptor, serializedWrapper)
                         } else {
-                            //TODO: add here serializedWrapper actual gives us a back a result
-                            RepeatedCalculator(proto, tag, descriptor)
+                            //TODO: adding here serializedWrapper actual gives us a back a result of "50"
+                            RepeatedCalculator(proto, tag, descriptor, serializedWrapper)
                         }
                     }
                 }
