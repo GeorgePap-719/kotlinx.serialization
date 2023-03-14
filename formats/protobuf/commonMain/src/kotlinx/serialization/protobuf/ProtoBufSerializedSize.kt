@@ -21,6 +21,7 @@ internal expect fun createSerializedSizeCache(): SerializedSizeCache
 //TODO: add kdoc
 // notes: memoization can probably be done with a concurrent map holding descriptor and serializedSize.
 // note: probably this memoization has to be redesigned.
+// note: cache holds unnecessary sizes during computing.
 internal interface SerializedSizeCache {
     fun get(key: SerialDescriptor): Int?
     fun put(key: SerialDescriptor, size: Int)
@@ -40,7 +41,7 @@ public fun <T> ProtoBuf.getOrComputeSerializedSize(serializer: SerializationStra
 }
 
 /* To pass around size.*/
-internal data class SerializedSizeWrapper(var value: Int)
+internal data class SerializedSizeWrapper(var value: Int) // better name -> SerializedSizePointer
 
 @OptIn(ExperimentalSerializationApi::class)
 internal open class ProtoBufSerializedSizeCalculator(
@@ -76,6 +77,7 @@ internal open class ProtoBufSerializedSizeCalculator(
                     if (tag == MISSING_TAG) {
                         //TODO: this probably can be removed since the above solution calculates
                         // collection size
+                        // TODO("this should not be reached, since we solve it at a previous step.")
                     }
                     if (this.descriptor.kind == StructureKind.LIST && tag != MISSING_TAG && this.descriptor != descriptor) {
                         TODO("not yet implemented")
@@ -84,7 +86,6 @@ internal open class ProtoBufSerializedSizeCalculator(
                         if (this is RepeatedCalculator) {
                             println("returning this RepeatedCalculator")
                             this
-//                            RepeatedCalculator(proto, tag, descriptor, serializedWrapper)
                         } else {
                             //TODO: adding here serializedWrapper actual gives us a back a result of "50"
                             println("current $serializedSize")
