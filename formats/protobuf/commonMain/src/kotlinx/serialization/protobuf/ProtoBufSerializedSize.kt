@@ -55,8 +55,7 @@ internal open class ProtoBufSerializedSizeCalculator(
             serializedWrapper.value = value
         }
 
-    override val serializersModule: SerializersModule
-        get() = proto.serializersModule
+    override val serializersModule: SerializersModule get() = proto.serializersModule
 
     override fun shouldEncodeElementDefault(descriptor: SerialDescriptor, index: Int): Boolean = proto.encodeDefaults
 
@@ -83,10 +82,13 @@ internal open class ProtoBufSerializedSizeCalculator(
                     } else {
                         println("before: RepeatedCalculator")
                         if (this is RepeatedCalculator) {
+                            println("returning this RepeatedCalculator")
                             this
 //                            RepeatedCalculator(proto, tag, descriptor, serializedWrapper)
                         } else {
                             //TODO: adding here serializedWrapper actual gives us a back a result of "50"
+                            println("current $serializedSize")
+                            println("returning new RepeatedCalculator")
                             RepeatedCalculator(proto, tag, descriptor, serializedWrapper)
                         }
                     }
@@ -100,8 +102,8 @@ internal open class ProtoBufSerializedSizeCalculator(
 
     /* TODO proper impl */
     override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder {
-        if (serializedSize == -1) serializedSize = 0
         println("\n Beginning structure\n")
+        if (serializedSize == -1) serializedSize = 0
 //        serializedSize = 0 // reset serialized-size
         // delegate to proper calculator, e.g. class,map,list
         return when (descriptor.kind) {
@@ -283,19 +285,14 @@ internal open class ProtoBufSerializedSizeCalculator(
 
     private fun <T> computeRepeatedMessageSize(serializer: SerializationStrategy<T>, value: T) {
         println("inside computeRepeatedObject with desc: ${serializer.descriptor} and tag:$currentTagOrDefault")
-        //TODO: tag info
-        // at this point we should have at least two tags inside stack, imo. needs research
-        // closer..
         val tag = if (this is MapRepeatedCalculator) {
             popTagOrDefault()
         } else {
             popTag()
         }
-//        val tag = currentTagOrDefault // tag is required for calculating repeated objects
+        // tag is required for calculating repeated objects
         val calculator = if (tag == MISSING_TAG) {
-//            println("Inside computeRepeatedObject with MISSING_TAG")
             error("Inside computeRepeatedObject with MISSING_TAG")
-//            NestedRepeatedCalculator(proto, tag, serializer.descriptor, serializedWrapper)
         } else {
             RepeatedCalculator(proto, tag, serializer.descriptor)
         }
@@ -346,7 +343,7 @@ private class RepeatedCalculator(
     serializedWrapper: SerializedSizeWrapper = SerializedSizeWrapper(-1)
 ) : ObjectSizeCalculator(proto, curTag, descriptor, serializedWrapper) {
     init {
-        serializedSize = 0
+        if (serializedSize == -1) serializedSize = 0
     }
 
     override fun SerialDescriptor.getTag(index: Int) = curTag
@@ -360,7 +357,7 @@ private class MapRepeatedCalculator(
     serializedWrapper: SerializedSizeWrapper
 ) : ObjectSizeCalculator(proto, parentTag, descriptor, serializedWrapper) {
     init {
-        serializedSize = 0
+        if (serializedSize == -1) serializedSize = 0
     }
 
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc =
@@ -376,7 +373,7 @@ internal open class NestedRepeatedCalculator(
     serializedWrapper: SerializedSizeWrapper
 ) : ObjectSizeCalculator(proto, curTag, descriptor, serializedWrapper) {
     init {
-        serializedSize = 0
+        if (serializedSize == -1) serializedSize = 0
     }
 
     // all elements always have id = 1
@@ -504,8 +501,9 @@ private fun <T> ProtoBuf.computeSerializedMessageSize(serializer: SerializationS
 
 @OptIn(ExperimentalSerializationApi::class)
 private fun SerialDescriptor.isChildDescriptorPrimitive(): Boolean {
-    val child = runCatching { this.getElementDescriptor(0) }.getOrNull()
-        ?: error("child is not retrievable for list descriptor:$this")
+    val child = runCatching { this.getElementDescriptor(0) }.getOrElse {
+        error("child is not retrievable for list descriptor:$this")
+    }
     return child.kind is PrimitiveKind
 }
 
