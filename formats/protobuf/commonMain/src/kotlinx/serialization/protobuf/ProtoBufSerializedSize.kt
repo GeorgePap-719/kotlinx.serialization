@@ -323,9 +323,7 @@ internal open class ProtoBufSerializedSizeCalculator(
         val entries = (value as Map<*, *>).entries
         // calculate each entry separately through computeMessageSize(). We do not need to use computeRepeatedMessageSize(),
         // as we already have our message (entry) and there is no need to unwrap the collection.
-        for (entry in entries) {
-            computeMessageSize(mapEntrySerial, entry)
-        }
+        for (entry in entries) computeMessageSize(mapEntrySerial, entry)
     }
 }
 
