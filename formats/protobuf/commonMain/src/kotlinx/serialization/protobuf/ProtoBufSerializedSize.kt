@@ -89,7 +89,6 @@ internal open class ProtoBufSerializedSizeCalculator(
                         if (this is RepeatedCalculator) {
                             println("returning this RepeatedCalculator")
                             this
-//                            NestedRepeatedCalculator(proto, tag, descriptor, serializedWrapper)
                         } else {
                             println("current $serializedSize")
                             println("returning new RepeatedCalculator")
@@ -108,7 +107,6 @@ internal open class ProtoBufSerializedSizeCalculator(
     override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder {
         println("\n Beginning structure\n")
         if (serializedSize == -1) serializedSize = 0
-//        serializedSize = 0 // reset serialized-size
         // delegate to proper calculator, e.g. class, map, list, etc.
         return when (descriptor.kind) {
             StructureKind.LIST -> {
@@ -130,7 +128,6 @@ internal open class ProtoBufSerializedSizeCalculator(
 
             StructureKind.MAP -> {
                 println("--- inside struct map ---")
-//                this //TODO: follow this lead
                 MapRepeatedCalculator(proto, currentTagOrDefault, descriptor, serializedWrapper)
             }
 
@@ -155,7 +152,7 @@ internal open class ProtoBufSerializedSizeCalculator(
 
             serializer.descriptor == ByteArraySerializer().descriptor -> computeByteArraySize(value as ByteArray)
 
-            //serializer.descriptor.kind !is StructureKind.LIST &&
+            // This path is specifically only for computing size of "Messages" (objects).
             (serializer.descriptor.kind is StructureKind.CLASS ||
                     serializer.descriptor.kind is PolymorphicKind ||
                     serializer.descriptor.kind is StructureKind.OBJECT) &&
@@ -167,6 +164,7 @@ internal open class ProtoBufSerializedSizeCalculator(
                 computeMessageSize(serializer, value)
             }
 
+            // Repeated primitives need special handling.
             serializer.descriptor != this.descriptor &&
                     serializer.descriptor.kind is StructureKind.LIST &&
                     serializer.descriptor.isChildDescriptorPrimitive()
@@ -177,6 +175,7 @@ internal open class ProtoBufSerializedSizeCalculator(
 
             serializer.descriptor != this.descriptor &&
                     serializer.descriptor.kind is StructureKind.LIST &&
+                    // ensure child is not primitive, since repeated primitives are computed through different path.
                     serializer.descriptor.isNotChildDescriptorPrimitive()
             -> {
                 println("going to compute repeatedMessage")
@@ -296,17 +295,9 @@ internal open class ProtoBufSerializedSizeCalculator(
 
     private fun <T> computeRepeatedMessageSize(serializer: SerializationStrategy<T>, value: T) {
         println("inside computeRepeatedObject with desc: ${serializer.descriptor} and tag:$currentTagOrDefault")
-        val tag = if (this is MapRepeatedCalculator) {
-            popTagOrDefault()
-        } else {
-            popTag()
-        }
-        // tag is required for calculating repeated objects
-        val calculator = if (tag == MISSING_TAG) {
-            error("Inside computeRepeatedObject with MISSING_TAG")
-        } else {
-            RepeatedCalculator(proto, tag, serializer.descriptor)
-        }
+        val tag = popTag() // tag is required for calculating repeated objects
+        // each object in collection should be calculated with the same tag.
+        val calculator = RepeatedCalculator(proto, tag, serializer.descriptor)
         calculator.encodeSerializableValue(serializer, value)
         serializedSize += calculator.serializedSize
     }
@@ -314,6 +305,7 @@ internal open class ProtoBufSerializedSizeCalculator(
     private fun <T> computeRepeatedPrimitive(serializer: SerializationStrategy<T>, value: T) {
         println("inside computeRepeatedPrimitive with desc: ${serializer.descriptor}")
         // repeated primitives should not be calculated with their tag
+        // TODO: not 100% why we have to avoid tag here. Java's implementation though, implicit does not include it. (needs research)
         val calculator = RepeatedCalculator(proto, MISSING_TAG, serializer.descriptor)
         calculator.encodeSerializableValue(serializer, value)
         serializedSize += calculator.serializedSize
@@ -325,28 +317,12 @@ internal open class ProtoBufSerializedSizeCalculator(
         println("\n ---- encoding as Map with tag: ${currentTag}---- \n")
         val casted = (serializer as MapLikeSerializer<Any?, Any?, T, *>)
         val mapEntrySerial = MapEntrySerializer(casted.keySerializer, casted.valueSerializer)
-        // this probably is ok, the problem is probably deeper in chain call
-//        val setSerializer = SetSerializer(mapEntrySerial)//.serialize(this, (value as Map<*, *>).entries)
-        // since we encode map as a collection of objects, then we have to calculate its size through computeMessageSize.
         val entries = (value as Map<*, *>).entries
+        // calculate each entry separately through computeMessageSize(). We do not need to use computeRepeatedMessageSize(),
+        // as we already have our message (entry) and there is no need to unwrap the collection.
         for (entry in entries) {
             computeMessageSize(mapEntrySerial, entry)
         }
-//        computeMessageSize(setSerializer, entries)
-//        if (entries.size > 1) {
-//            computeRepeatedMessageSize(setSerializer, entries)
-//        } else {
-//            computeMessageSize(setSerializer, entries)
-//        }
-
-//        computeRepeatedMessageSize(setSerializer, (value as Map<*, *>).entries)
-//        val tag = currentTag
-
-//        val calculator = MapRepeatedCalculator(proto, tag, serializer.descriptor)
-        // maybe encodeElement here
-//        calculator.encodeSerializableElement(setSerializer.descriptor, tag.protoId, serializer, value)
-//        calculator.encodeSerializableValue(setSerializer, (value as Map<*, *>).entries)
-//        serializedSize += calculator.serializedSize
     }
 }
 
@@ -478,6 +454,9 @@ private fun computeDoubleSize(tag: Int): Int {
     return tagSize + getFixed64SizeNoTag()
 }
 
+/*
+ * Booleans encode as either `00` or `01`, per proto-spec.
+ */
 private fun computeBooleanSize(tag: Int): Int {
     val tagSize = computeTagSize(tag)
     return tagSize + 1
@@ -488,6 +467,9 @@ private fun computeStringSize(value: String, tag: Int): Int {
     return tagSize + computeStringSizeNoTag(value)
 }
 
+/*
+ * Enums are encoded as `int32` per proto-spec.
+ */
 @OptIn(ExperimentalSerializationApi::class)
 private fun computeEnumSize(value: Int, tag: Int, format: ProtoIntegerType): Int = computeIntSize(value, tag, format)
 
