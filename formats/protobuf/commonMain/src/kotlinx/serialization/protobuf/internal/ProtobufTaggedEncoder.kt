@@ -130,8 +130,10 @@ internal abstract class ProtobufTaggedEncoder : ProtobufTaggedBase(), Encoder, C
         value: T
     ) {
         nullableMode = NullableMode.NOT_NULL
-        println("will push:${descriptor.getTag(index)} in stack")
-        pushTag(descriptor.getTag(index))
+        val tag = descriptor.getTag(index)
+        println("will push tag:$tag in stack")
+        pushTag(tag)
+        println("total stackSize:${stackSize + 1}")
         encodeSerializableValue(serializer, value)
     }
 

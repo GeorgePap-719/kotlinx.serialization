@@ -75,6 +75,7 @@ internal open class ProtoBufSerializedSizeCalculator(
                         println("before adding: $serializedSize")
                         serializedSize += collectionSize
                     }
+                    println("tag state:$tag")
                     if (tag == MISSING_TAG) {
                         //TODO: this probably can be removed since the above solution calculates
                         // collection size
@@ -82,14 +83,15 @@ internal open class ProtoBufSerializedSizeCalculator(
                         // Should the solution be re-checked?
                     }
                     if (this.descriptor.kind == StructureKind.LIST && tag != MISSING_TAG && this.descriptor != descriptor) {
+                        // NestedRepeatedEncoder
                         TODO("not yet implemented")
                     } else {
                         println("before: RepeatedCalculator")
                         if (this is RepeatedCalculator) {
                             println("returning this RepeatedCalculator")
                             this
+//                            NestedRepeatedCalculator(proto, tag, descriptor, serializedWrapper)
                         } else {
-                            //TODO: adding here serializedWrapper actual gives us a back a result of "50"
                             println("current $serializedSize")
                             println("returning new RepeatedCalculator")
                             RepeatedCalculator(proto, tag, descriptor, serializedWrapper)
@@ -108,14 +110,14 @@ internal open class ProtoBufSerializedSizeCalculator(
         println("\n Beginning structure\n")
         if (serializedSize == -1) serializedSize = 0
 //        serializedSize = 0 // reset serialized-size
-        // delegate to proper calculator, e.g. class,map,list
+        // delegate to proper calculator, e.g. class, map, list, etc.
         return when (descriptor.kind) {
             StructureKind.LIST -> {
                 println("\n --- inside struct List --- \n")
                 if (descriptor.getElementDescriptor(0).isPackable && currentTagOrDefault.isPacked) {
                     PackedArrayCalculator(proto, currentTagOrDefault, descriptor)
                 } else {
-                    RepeatedCalculator(proto, currentTagOrDefault, descriptor)
+                    RepeatedCalculator(proto, currentTagOrDefault, descriptor, serializedWrapper)
                 }
             }
 
@@ -148,6 +150,7 @@ internal open class ProtoBufSerializedSizeCalculator(
         println("\n ---- encodeSerializableValue for ${serializer.descriptor} ---- \n")
         return when {
             serializer is MapLikeSerializer<*, *, *, *> -> {
+                println("going to compute mapSize")
                 computeMapSize(serializer as SerializationStrategy<T>, value)
             }
 
@@ -160,7 +163,7 @@ internal open class ProtoBufSerializedSizeCalculator(
                     serializer.descriptor.kind !is PrimitiveKind &&
                     serializer.descriptor != this.descriptor -> {
                 println(
-                    "--- inside serializer.descriptor != this.descriptor with desc:${serializer.descriptor} ---"
+                    "--- computing messageSize with desc:${serializer.descriptor} ---"
                 )
                 computeMessageSize(serializer, value)
             }
@@ -168,12 +171,18 @@ internal open class ProtoBufSerializedSizeCalculator(
             serializer.descriptor != this.descriptor &&
                     serializer.descriptor.kind is StructureKind.LIST &&
                     serializer.descriptor.isChildDescriptorPrimitive()
-            -> computeRepeatedPrimitive(serializer, value)
+            -> {
+                println("going to compute repeatedPrimitive")
+                computeRepeatedPrimitive(serializer, value)
+            }
 
             serializer.descriptor != this.descriptor &&
                     serializer.descriptor.kind is StructureKind.LIST &&
                     serializer.descriptor.isNotChildDescriptorPrimitive()
-            -> computeRepeatedMessageSize(serializer, value)
+            -> {
+                println("going to compute repeatedMessage")
+                computeRepeatedMessageSize(serializer, value)
+            }
 
 
             else -> {
@@ -319,6 +328,7 @@ internal open class ProtoBufSerializedSizeCalculator(
         val mapEntrySerial = MapEntrySerializer(casted.keySerializer, casted.valueSerializer)
         // this probably is ok, the problem is probably deeper in chain call
         /*val setSerializer = */ SetSerializer(mapEntrySerial).serialize(this, (value as Map<*, *>).entries)
+
 //        computeRepeatedMessageSize(setSerializer, (value as Map<*, *>).entries)
 //        val tag = currentTag
 
