@@ -5,7 +5,6 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.builtins.MapEntrySerializer
-import kotlinx.serialization.builtins.SetSerializer
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.CompositeEncoder
 import kotlinx.serialization.internal.MapLikeSerializer
@@ -327,7 +326,18 @@ internal open class ProtoBufSerializedSizeCalculator(
         val casted = (serializer as MapLikeSerializer<Any?, Any?, T, *>)
         val mapEntrySerial = MapEntrySerializer(casted.keySerializer, casted.valueSerializer)
         // this probably is ok, the problem is probably deeper in chain call
-        /*val setSerializer = */ SetSerializer(mapEntrySerial).serialize(this, (value as Map<*, *>).entries)
+//        val setSerializer = SetSerializer(mapEntrySerial)//.serialize(this, (value as Map<*, *>).entries)
+        // since we encode map as a collection of objects, then we have to calculate its size through computeMessageSize.
+        val entries = (value as Map<*, *>).entries
+        for (entry in entries) {
+            computeMessageSize(mapEntrySerial, entry)
+        }
+//        computeMessageSize(setSerializer, entries)
+//        if (entries.size > 1) {
+//            computeRepeatedMessageSize(setSerializer, entries)
+//        } else {
+//            computeMessageSize(setSerializer, entries)
+//        }
 
 //        computeRepeatedMessageSize(setSerializer, (value as Map<*, *>).entries)
 //        val tag = currentTag
