@@ -22,6 +22,7 @@ internal expect fun createSerializedSizeCache(): SerializedSizeCache
 // notes: memoization can probably be done with a concurrent map holding descriptor and serializedSize.
 // note: probably this memoization has to be redesigned.
 // note: cache holds unnecessary sizes during computing.
+// note: maybe it's better for key to be object's hashed value. (needs research)
 internal interface SerializedSizeCache {
     fun get(key: SerialDescriptor): Int?
     fun put(key: SerialDescriptor, size: Int)
@@ -77,7 +78,8 @@ internal open class ProtoBufSerializedSizeCalculator(
                     if (tag == MISSING_TAG) {
                         //TODO: this probably can be removed since the above solution calculates
                         // collection size
-                        // TODO("this should not be reached, since we solve it at a previous step.")
+                        // Even though we solve this at a previous stage, we still end up with missing tag.
+                        // Should the solution be re-checked?
                     }
                     if (this.descriptor.kind == StructureKind.LIST && tag != MISSING_TAG && this.descriptor != descriptor) {
                         TODO("not yet implemented")
