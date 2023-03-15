@@ -40,20 +40,23 @@ public fun <T> ProtoBuf.getOrComputeSerializedSize(serializer: SerializationStra
     }
 }
 
-/* To pass around size.*/
-internal data class SerializedSizeWrapper(var value: Int) // better name -> SerializedSizePointer
+/**
+ * Internal helper to pass around serialized size.
+ * Should not be leaked to the outside world.
+ */
+internal data class SerializedSizePointer(var value: Int)
 
 @OptIn(ExperimentalSerializationApi::class)
 internal open class ProtoBufSerializedSizeCalculator(
     private val proto: ProtoBuf,
     internal val descriptor: SerialDescriptor,
-    private val serializedWrapper: SerializedSizeWrapper = SerializedSizeWrapper(-1)
+    private val serializedSizePointer: SerializedSizePointer = SerializedSizePointer(-1)
 ) : ProtobufTaggedEncoder() {
     internal var serializedSize // memoized it
-        get() = serializedWrapper.value
+        get() = serializedSizePointer.value
         set(value) {
             println("updating size with $value for ${descriptor.serialName}")
-            serializedWrapper.value = value
+            serializedSizePointer.value = value
         }
 
     override val serializersModule: SerializersModule get() = proto.serializersModule
@@ -92,13 +95,13 @@ internal open class ProtoBufSerializedSizeCalculator(
                         } else {
                             println("current $serializedSize")
                             println("returning new RepeatedCalculator")
-                            RepeatedCalculator(proto, tag, descriptor, serializedWrapper)
+                            RepeatedCalculator(proto, tag, descriptor, serializedSizePointer)
                         }
                     }
                 }
             }
 
-            StructureKind.MAP -> MapRepeatedCalculator(proto, currentTagOrDefault, descriptor, serializedWrapper)
+            StructureKind.MAP -> MapRepeatedCalculator(proto, currentTagOrDefault, descriptor, serializedSizePointer)
             else -> throw SerializationException("This serial kind is not supported as collection: $descriptor")
         }
     }
@@ -114,7 +117,7 @@ internal open class ProtoBufSerializedSizeCalculator(
                 if (descriptor.getElementDescriptor(0).isPackable && currentTagOrDefault.isPacked) {
                     PackedArrayCalculator(proto, currentTagOrDefault, descriptor)
                 } else {
-                    RepeatedCalculator(proto, currentTagOrDefault, descriptor, serializedWrapper)
+                    RepeatedCalculator(proto, currentTagOrDefault, descriptor, serializedSizePointer)
                 }
             }
 
@@ -128,7 +131,7 @@ internal open class ProtoBufSerializedSizeCalculator(
 
             StructureKind.MAP -> {
                 println("--- inside struct map ---")
-                MapRepeatedCalculator(proto, currentTagOrDefault, descriptor, serializedWrapper)
+                MapRepeatedCalculator(proto, currentTagOrDefault, descriptor, serializedSizePointer)
             }
 
             else -> throw SerializationException("This serial kind is not supported as structure: $descriptor")
@@ -331,7 +334,7 @@ internal open class ObjectSizeCalculator(
     proto: ProtoBuf,
     @JvmField protected val parentTag: ProtoDesc,
     descriptor: SerialDescriptor,
-    serializedWrapper: SerializedSizeWrapper = SerializedSizeWrapper(-1)
+    serializedWrapper: SerializedSizePointer = SerializedSizePointer(-1)
 ) : ProtoBufSerializedSizeCalculator(proto, descriptor, serializedWrapper)
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -339,7 +342,7 @@ private class RepeatedCalculator(
     proto: ProtoBuf,
     @JvmField val curTag: ProtoDesc,
     descriptor: SerialDescriptor,
-    serializedWrapper: SerializedSizeWrapper = SerializedSizeWrapper(-1)
+    serializedWrapper: SerializedSizePointer = SerializedSizePointer(-1)
 ) : ObjectSizeCalculator(proto, curTag, descriptor, serializedWrapper) {
     init {
         if (serializedSize == -1) serializedSize = 0
@@ -353,7 +356,7 @@ private class MapRepeatedCalculator(
     proto: ProtoBuf,
     parentTag: ProtoDesc,
     descriptor: SerialDescriptor,
-    serializedWrapper: SerializedSizeWrapper
+    serializedWrapper: SerializedSizePointer
 ) : ObjectSizeCalculator(proto, parentTag, descriptor, serializedWrapper) {
     init {
         if (serializedSize == -1) serializedSize = 0
@@ -369,7 +372,7 @@ internal open class NestedRepeatedCalculator(
     proto: ProtoBuf,
     @JvmField val curTag: ProtoDesc,
     descriptor: SerialDescriptor,
-    serializedWrapper: SerializedSizeWrapper
+    serializedWrapper: SerializedSizePointer
 ) : ObjectSizeCalculator(proto, curTag, descriptor, serializedWrapper) {
     init {
         if (serializedSize == -1) serializedSize = 0
