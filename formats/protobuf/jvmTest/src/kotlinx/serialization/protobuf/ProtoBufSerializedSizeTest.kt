@@ -193,7 +193,25 @@ class ProtoBufSerializedSizeTest {
             addAllB(listOf(10, 20, 10, 10, 10, 10))
         }.build()
         assertEquals(javaType.serializedSize, size)
-        println("java:${javaType.serializedSize} kotlin:$size")
+    }
+
+    @Serializable
+    data class DataRepeatedIntMessageWithRandomTags(
+        @ProtoNumber(5)
+        val s: Int,
+        @ProtoNumber(20)
+        val b: List<Int>
+    )
+
+    @Test
+    fun shouldCalculateRepeatedIntMessageWithRandomTags() {
+        val data = DataRepeatedIntMessageWithRandomTags(1, listOf(10, 20, 10, 10, 10, 10))
+        val size = protoBuf.getOrComputeSerializedSize(DataRepeatedIntMessageWithRandomTags.serializer(), data)
+        val javaType = TestRepeatedIntMessageWithRandomTags.newBuilder().apply {
+            s = 1
+            addAllB(listOf(10, 20, 10, 10, 10, 10))
+        }.build()
+        assertEquals(javaType.serializedSize, size)
     }
 
     @Serializable

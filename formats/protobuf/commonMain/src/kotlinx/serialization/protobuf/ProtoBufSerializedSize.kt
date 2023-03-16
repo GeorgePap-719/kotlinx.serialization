@@ -73,6 +73,7 @@ internal open class ProtoBufSerializedSizeCalculator(
                 } else {
                     if (serializedSize == -1) serializedSize = 0
                     if (descriptor.isChildDescriptorPrimitive()) {
+                        // Calculates tag only for repeated primitives.
                         println("adding collectionSize $collectionSize")
                         println("before adding: $serializedSize")
                         serializedSize += collectionSize
@@ -106,7 +107,6 @@ internal open class ProtoBufSerializedSizeCalculator(
         }
     }
 
-    /* TODO proper impl */
     override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder {
         println("\n Beginning structure\n")
         if (serializedSize == -1) serializedSize = 0
@@ -123,10 +123,7 @@ internal open class ProtoBufSerializedSizeCalculator(
 
             StructureKind.CLASS, StructureKind.OBJECT, is PolymorphicKind -> {
                 println("--- inside struct class ---")
-                this //TODO: check if this is ok
-//                val tag = currentTagOrDefault
-//                if (tag == MISSING_TAG && descriptor == this.descriptor) this
-//                else ObjectSizeCalculator(proto, currentTagOrDefault, descriptor)
+                this
             }
 
             StructureKind.MAP -> {
@@ -193,10 +190,8 @@ internal open class ProtoBufSerializedSizeCalculator(
         }
     }
 
-    private fun SerialDescriptor.isPacked(): Boolean =
-        getElementDescriptor(0).isPackable && currentTagOrDefault.isPacked
-
-    private fun SerialDescriptor.isNotPacked(): Boolean = !isPacked()
+    private fun SerialDescriptor.isNotPacked(): Boolean =
+        !(getElementDescriptor(0).isPackable && currentTagOrDefault.isPacked)
 
     override fun encodeTaggedInt(tag: ProtoDesc, value: Int) {
         serializedSize += if (tag == MISSING_TAG) {
@@ -312,8 +307,8 @@ internal open class ProtoBufSerializedSizeCalculator(
 
     private fun <T> computeRepeatedPrimitive(serializer: SerializationStrategy<T>, value: T) {
         println("inside computeRepeatedPrimitive with desc: ${serializer.descriptor}")
-        // repeated primitives should not be calculated with their tag
-        // TODO: not 100% why we have to avoid tag here. Java's implementation though, implicit does not include it. (needs research)
+        // note: tag of repeated primitives is calculated in beginCollection(), since is calculated based on the collection's size.
+        // That's why we implicit pass here `MISSING_TAG`.
         val calculator = RepeatedCalculator(proto, MISSING_TAG, serializer.descriptor)
         calculator.encodeSerializableValue(serializer, value)
         serializedSize += calculator.serializedSize
@@ -427,7 +422,7 @@ internal class PackedArrayCalculator(
     }
 }
 
-// helpers
+// computers
 
 @OptIn(ExperimentalSerializationApi::class)
 private fun computeLongSize(value: Long, tag: Int, format: ProtoIntegerType): Int {
