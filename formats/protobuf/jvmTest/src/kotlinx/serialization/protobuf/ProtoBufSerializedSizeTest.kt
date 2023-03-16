@@ -356,4 +356,13 @@ class ProtoBufSerializedSizeTest {
         println(size)
         assertEquals(java.serializedSize, size)
     }
+
+    @Test
+    fun shouldCalculateEmptyMessageWithPackedFields() {
+        val data = DataWithPackedFields(listOf())
+        val size = protoBuf.getOrComputeSerializedSize(DataWithPackedFields.serializer(), data)
+        val java = MessageWithPackedFields.newBuilder().apply { addAllA(listOf()) }.build()
+        println(size)
+        assertEquals(java.serializedSize, size)
+    }
 }

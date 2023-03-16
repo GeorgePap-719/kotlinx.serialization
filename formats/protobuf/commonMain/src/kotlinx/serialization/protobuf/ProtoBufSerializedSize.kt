@@ -68,6 +68,7 @@ internal open class ProtoBufSerializedSizeCalculator(
             StructureKind.LIST -> {
                 val tag = currentTagOrDefault
                 if (tag.isPacked && descriptor.getElementDescriptor(0).isPackable) {
+                    println("in PackedArrayCalculator")
                     PackedArrayCalculator(proto, currentTagOrDefault, descriptor, serializedSizePointer)
                 } else {
                     if (serializedSize == -1) serializedSize = 0
@@ -390,14 +391,23 @@ internal class PackedArrayCalculator(
     proto: ProtoBuf,
     curTag: ProtoDesc,
     descriptor: SerialDescriptor,
-    serializedSizePointer: SerializedSizePointer
-) : NestedRepeatedCalculator(proto, curTag, descriptor, serializedSizePointer) {
+    // parent size to be updated after computing the size.
+    private val parentSerializedSize: SerializedSizePointer
+) : NestedRepeatedCalculator(proto, curTag, descriptor, SerializedSizePointer(-1)) {
+    private var tag: Int = -1
 
     // Triggers not writing header
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc = MISSING_TAG
 
-    override fun endEncode(descriptor: SerialDescriptor) {} // avoid writing in cache, since we can be sure that packed fields
-    // will not represent the target Message.
+    override fun endEncode(descriptor: SerialDescriptor) {
+        if (serializedSize == 0) return // empty collection
+        serializedSize++
+        // Since repeated fields are encoded as single LEN record that contains each element concatenated, then tag
+        // should be computed once for whole message.
+        tag = computeInt32SizeNoTag(serializedSize)
+        // update parentSize
+        parentSerializedSize.value += tag + serializedSize
+    }
 
     override fun beginCollection(descriptor: SerialDescriptor, collectionSize: Int): CompositeEncoder {
         throw SerializationException("Packing only supports primitive number types")
