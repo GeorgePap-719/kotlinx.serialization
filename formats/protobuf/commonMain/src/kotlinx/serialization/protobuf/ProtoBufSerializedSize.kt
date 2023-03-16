@@ -408,7 +408,7 @@ internal class PackedArrayCalculator(
     override fun endEncode(descriptor: SerialDescriptor) {
         if (serializedSize == 0) return // empty collection
         println("protoId: ${curTag.protoId}")
-        serializedSize += computeUInt32SizeNoTag(serializedSize) // compute varint based on "serializedSize".
+        serializedSize += computeUInt32SizeNoTag(serializedSize) // compute varint based on result of "serializedSize".
         println("serializedSize after varint field number:${computeUInt32SizeNoTag(curTag.protoId)}")
         // Since repeated fields are encoded as single LEN record that contains each element concatenated, then tag
         // should be computed once for whole message.
