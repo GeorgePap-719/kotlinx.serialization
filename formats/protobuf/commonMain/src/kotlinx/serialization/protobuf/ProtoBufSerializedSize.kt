@@ -72,18 +72,12 @@ internal open class ProtoBufSerializedSizeCalculator(
                     PackedArrayCalculator(proto, currentTagOrDefault, descriptor, serializedSizePointer)
                 } else {
                     if (serializedSize == -1) serializedSize = 0
-                    if (descriptor.isChildDescriptorPrimitive()) {
-                        // Calculates tag only for repeated primitives.
+                    println("tag state:$tag")
+                    if (descriptor.isChildDescriptorPrimitive() && tag == MISSING_TAG) {
+                        // Calculates tag only for repeated primitives. Objects have different path.
                         println("adding collectionSize $collectionSize")
                         println("before adding: $serializedSize")
                         serializedSize += collectionSize
-                    }
-                    println("tag state:$tag")
-                    if (tag == MISSING_TAG) {
-                        //TODO: this probably can be removed since the above solution calculates
-                        // collection size
-                        // Even though we solve this at a previous stage, we still end up with missing tag.
-                        // Should the solution be re-checked?
                     }
                     if (this.descriptor.kind == StructureKind.LIST && tag != MISSING_TAG && this.descriptor != descriptor) {
                         // NestedRepeatedEncoder
@@ -347,6 +341,14 @@ private class RepeatedCalculator(
     }
 
     override fun SerialDescriptor.getTag(index: Int) = curTag
+
+    override fun <T> encodeSerializableValue(serializer: SerializationStrategy<T>, value: T) {
+        println("adding tag size in collection:${curTag.protoId}")
+        if (curTag != MISSING_TAG) {
+//            serializedSize += computeTagSize(curTag.protoId)
+        }
+        super.encodeSerializableValue(serializer, value)
+    }
 }
 
 @OptIn(ExperimentalSerializationApi::class)
