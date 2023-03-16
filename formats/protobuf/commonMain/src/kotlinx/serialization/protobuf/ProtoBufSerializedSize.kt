@@ -391,9 +391,15 @@ internal class PackedArrayCalculator(
     proto: ProtoBuf,
     curTag: ProtoDesc,
     descriptor: SerialDescriptor,
-    // parent size to be updated after computing the size.
+    // Parent size to be updated after computing the size.
     private val parentSerializedSize: SerializedSizePointer
-) : NestedRepeatedCalculator(proto, curTag, descriptor, SerializedSizePointer(-1)) {
+) : NestedRepeatedCalculator(
+    proto,
+    curTag,
+    descriptor,
+    /* SerializedSize to be used as result container. The final tag is computed through this result. */
+    SerializedSizePointer(-1)
+) {
     private var tag: Int = -1
 
     // Triggers not writing header
@@ -401,12 +407,13 @@ internal class PackedArrayCalculator(
 
     override fun endEncode(descriptor: SerialDescriptor) {
         if (serializedSize == 0) return // empty collection
-        serializedSize++
+        println("protoId: ${curTag.protoId}")
+        serializedSize += computeUInt32SizeNoTag(serializedSize) // compute varint based on "serializedSize".
+        println("serializedSize after varint field number:${computeUInt32SizeNoTag(curTag.protoId)}")
         // Since repeated fields are encoded as single LEN record that contains each element concatenated, then tag
         // should be computed once for whole message.
-        tag = computeInt32SizeNoTag(serializedSize)
-        // update parentSize
-        parentSerializedSize.value += tag + serializedSize
+        tag = computeTagSize(curTag.protoId)
+        parentSerializedSize.value += tag + serializedSize // update parentSize
     }
 
     override fun beginCollection(descriptor: SerialDescriptor, collectionSize: Int): CompositeEncoder {

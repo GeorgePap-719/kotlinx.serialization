@@ -25,7 +25,7 @@ internal fun computeInt32SizeNoTag(value: Int) =
 
 /** Compute the number of bytes that would be needed to encode an uint32 field. */
 //TODO: use varintLen?
-private fun computeUInt32SizeNoTag(value: Int): Int = when {
+internal fun computeUInt32SizeNoTag(value: Int): Int = when {
     value and (0.inv() shl 7) == 0 -> 1
     value and (0.inv() shl 14) == 0 -> 2
     value and (0.inv() shl 21) == 0 -> 3

@@ -93,3 +93,8 @@ message MessageWithOptionals {
 message MessageWithPackedFields {
     repeated int32 a = 1 [packed = true];
 }
+
+message MessageWithPackedFieldsAndRandomTags {
+    repeated int32 a = 5 [packed = true];
+    repeated int32 b = 20 [packed = true];
+}
