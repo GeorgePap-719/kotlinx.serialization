@@ -391,7 +391,7 @@ internal class PackedArrayCalculator(
     curTag: ProtoDesc,
     descriptor: SerialDescriptor,
     serializedSizePointer: SerializedSizePointer
-) : ObjectSizeCalculator(proto, curTag, descriptor, serializedSizePointer) {
+) : NestedRepeatedCalculator(proto, curTag, descriptor, serializedSizePointer) {
 
     // Triggers not writing header
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc = MISSING_TAG
