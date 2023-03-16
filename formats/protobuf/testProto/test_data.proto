@@ -89,3 +89,7 @@ message MessageWithOptionals {
         SECOND = 1;
     }
 }
+
+message MessageWithPackedFields {
+    repeated int32 a = 1 [packed = true];
+}

@@ -68,7 +68,7 @@ internal open class ProtoBufSerializedSizeCalculator(
             StructureKind.LIST -> {
                 val tag = currentTagOrDefault
                 if (tag.isPacked && descriptor.getElementDescriptor(0).isPackable) {
-                    TODO("not yet implemented")
+                    PackedArrayCalculator(proto, currentTagOrDefault, descriptor, serializedSizePointer)
                 } else {
                     if (serializedSize == -1) serializedSize = 0
                     if (descriptor.isChildDescriptorPrimitive()) {
@@ -114,7 +114,7 @@ internal open class ProtoBufSerializedSizeCalculator(
             StructureKind.LIST -> {
                 println("\n --- inside struct List --- \n")
                 if (descriptor.getElementDescriptor(0).isPackable && currentTagOrDefault.isPacked) {
-                    PackedArrayCalculator(proto, currentTagOrDefault, descriptor)
+                    PackedArrayCalculator(proto, currentTagOrDefault, descriptor, serializedSizePointer)
                 } else {
                     RepeatedCalculator(proto, currentTagOrDefault, descriptor, serializedSizePointer)
                 }
@@ -166,10 +166,10 @@ internal open class ProtoBufSerializedSizeCalculator(
                 computeMessageSize(serializer, value)
             }
 
-            // Repeated primitives need special handling.
             serializer.descriptor != this.descriptor &&
                     serializer.descriptor.kind is StructureKind.LIST &&
-                    serializer.descriptor.isChildDescriptorPrimitive()
+                    serializer.descriptor.isChildDescriptorPrimitive() &&
+                    serializer.descriptor.isNotPacked() // packed fields are computed through different path.
             -> {
                 println("going to compute repeatedPrimitive")
                 computeRepeatedPrimitive(serializer, value)
@@ -191,6 +191,11 @@ internal open class ProtoBufSerializedSizeCalculator(
             }
         }
     }
+
+    private fun SerialDescriptor.isPacked(): Boolean =
+        getElementDescriptor(0).isPackable && currentTagOrDefault.isPacked
+
+    private fun SerialDescriptor.isNotPacked(): Boolean = !isPacked()
 
     override fun encodeTaggedInt(tag: ProtoDesc, value: Int) {
         serializedSize += if (tag == MISSING_TAG) {
@@ -331,8 +336,8 @@ internal open class ObjectSizeCalculator(
     proto: ProtoBuf,
     @JvmField protected val parentTag: ProtoDesc,
     descriptor: SerialDescriptor,
-    serializedWrapper: SerializedSizePointer = SerializedSizePointer(-1)
-) : ProtoBufSerializedSizeCalculator(proto, descriptor, serializedWrapper)
+    serializedSizePointer: SerializedSizePointer = SerializedSizePointer(-1)
+) : ProtoBufSerializedSizeCalculator(proto, descriptor, serializedSizePointer)
 
 @OptIn(ExperimentalSerializationApi::class)
 private class RepeatedCalculator(
@@ -369,8 +374,8 @@ internal open class NestedRepeatedCalculator(
     proto: ProtoBuf,
     @JvmField val curTag: ProtoDesc,
     descriptor: SerialDescriptor,
-    serializedWrapper: SerializedSizePointer
-) : ObjectSizeCalculator(proto, curTag, descriptor, serializedWrapper) {
+    serializedSizePointer: SerializedSizePointer
+) : ObjectSizeCalculator(proto, curTag, descriptor, serializedSizePointer) {
     init {
         if (serializedSize == -1) serializedSize = 0
     }
@@ -380,21 +385,19 @@ internal open class NestedRepeatedCalculator(
 
 }
 
-/* TODO */
-// Is missing_tag case only for packed messages?
 @OptIn(ExperimentalSerializationApi::class)
 internal class PackedArrayCalculator(
     proto: ProtoBuf,
     curTag: ProtoDesc,
     descriptor: SerialDescriptor,
-) : ObjectSizeCalculator(proto, curTag, descriptor) {
+    serializedSizePointer: SerializedSizePointer
+) : ObjectSizeCalculator(proto, curTag, descriptor, serializedSizePointer) {
 
     // Triggers not writing header
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc = MISSING_TAG
 
-    override fun endEncode(descriptor: SerialDescriptor) {
-        TODO()
-    }
+    override fun endEncode(descriptor: SerialDescriptor) {} // avoid writing in cache, since we can be sure that packed fields
+    // will not represent the target Message.
 
     override fun beginCollection(descriptor: SerialDescriptor, collectionSize: Int): CompositeEncoder {
         throw SerializationException("Packing only supports primitive number types")
