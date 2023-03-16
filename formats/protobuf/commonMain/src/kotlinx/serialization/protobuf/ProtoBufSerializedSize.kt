@@ -400,8 +400,6 @@ internal class PackedArrayCalculator(
     /* SerializedSize to be used as result container. The final tag is computed through this result. */
     SerializedSizePointer(-1)
 ) {
-    private var tag: Int = -1
-
     // Triggers not writing header
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc = MISSING_TAG
 
@@ -412,7 +410,7 @@ internal class PackedArrayCalculator(
         println("serializedSize after varint field number:${computeUInt32SizeNoTag(curTag.protoId)}")
         // Since repeated fields are encoded as single LEN record that contains each element concatenated, then tag
         // should be computed once for whole message.
-        tag = computeTagSize(curTag.protoId)
+        val tag = computeTagSize(curTag.protoId)
         parentSerializedSize.value += tag + serializedSize // update parentSize
     }
 
