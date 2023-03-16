@@ -27,8 +27,7 @@ internal interface SerializedSizeCache {
     fun put(key: SerialDescriptor, size: Int)
 }
 
-//TODO: probably this is better to be put in diff kt file.
-@OptIn(ExperimentalSerializationApi::class)
+@ExperimentalSerializationApi
 public fun <T> ProtoBuf.getOrComputeSerializedSize(serializer: SerializationStrategy<T>, value: T): Int {
     val memoizedSize = memoizedSerializedSizes.get(serializer.descriptor)
     return if (memoizedSize != null) {
@@ -46,7 +45,7 @@ public fun <T> ProtoBuf.getOrComputeSerializedSize(serializer: SerializationStra
  */
 internal data class SerializedSizePointer(var value: Int)
 
-@OptIn(ExperimentalSerializationApi::class)
+@ExperimentalSerializationApi
 internal open class ProtoBufSerializedSizeCalculator(
     private val proto: ProtoBuf,
     internal val descriptor: SerialDescriptor,

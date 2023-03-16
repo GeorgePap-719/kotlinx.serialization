@@ -319,7 +319,7 @@ class ProtoBufSerializedSizeTest {
         val a: Int? = null,
         val b: String? = null,
         val c: Position? = null,
-        val d: Int = 9,
+        val d: Int = 99,
         val e: List<Int>
     ) {
         enum class Position {
