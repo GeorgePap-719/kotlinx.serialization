@@ -335,23 +335,32 @@ private open class RepeatedCalculator(
     }
 
     override fun SerialDescriptor.getTag(index: Int) = curTag
-
-    override fun <T> encodeSerializableValue(serializer: SerializationStrategy<T>, value: T) {
-        println("adding tag size in collection:${curTag.protoId}")
-        super.encodeSerializableValue(serializer, value)
-    }
 }
 
+/*
+ * Helper class to compute repeated primitives. The mental model is similar to this:
+ * tagSize = computeTagSize(tag)
+ * size = tagSize + computeElementSizeNoTag(type, value)
+ *
+ * To compute size we need 2 things;
+ * 1) compute elements without their tag.
+ * 2) compute tags for every element separately.
+ */
 @ExperimentalSerializationApi
 private class PrimitiveRepeatedCalculator(
     proto: ProtoBuf,
+    // The actual tag of field.
     curTag: ProtoDesc,
     descriptor: SerialDescriptor,
-    serializedWrapper: SerializedSizePointer = SerializedSizePointer(-1)
-) : RepeatedCalculator(proto, curTag, descriptor, serializedWrapper) {
+    serializedSizePointer: SerializedSizePointer = SerializedSizePointer(-1)
+) : RepeatedCalculator(proto, curTag, descriptor, serializedSizePointer) {
 
     // Triggers computers to choose `MISSING_TAG` path
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc = MISSING_TAG
+
+    /*
+     * Compute tagSize for every primitive and then delegate computing.
+     */
 
     override fun encodeTaggedBoolean(tag: ProtoDesc, value: Boolean) {
         if (curTag != MISSING_TAG) serializedSize += computeTagSize(curTag.protoId)
@@ -384,8 +393,8 @@ private class MapRepeatedCalculator(
     proto: ProtoBuf,
     parentTag: ProtoDesc,
     descriptor: SerialDescriptor,
-    serializedWrapper: SerializedSizePointer
-) : ObjectSizeCalculator(proto, parentTag, descriptor, serializedWrapper) {
+    serializedSizePointer: SerializedSizePointer
+) : ObjectSizeCalculator(proto, parentTag, descriptor, serializedSizePointer) {
     init {
         if (serializedSize == -1) serializedSize = 0
     }
