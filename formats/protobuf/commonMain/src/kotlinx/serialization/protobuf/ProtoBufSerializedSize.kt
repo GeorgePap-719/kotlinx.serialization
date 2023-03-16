@@ -73,12 +73,6 @@ internal open class ProtoBufSerializedSizeCalculator(
                 } else {
                     if (serializedSize == -1) serializedSize = 0
                     println("tag state:$tag")
-                    if (descriptor.isChildDescriptorPrimitive() && tag == MISSING_TAG) {
-                        // Calculates tag only for repeated primitives. Objects have different path.
-                        println("adding collectionSize $collectionSize")
-                        println("before adding: $serializedSize")
-                        serializedSize += collectionSize
-                    }
                     if (this.descriptor.kind == StructureKind.LIST && tag != MISSING_TAG && this.descriptor != descriptor) {
                         // NestedRepeatedEncoder
                         TODO("not yet implemented")
@@ -303,7 +297,7 @@ internal open class ProtoBufSerializedSizeCalculator(
         println("inside computeRepeatedPrimitive with desc: ${serializer.descriptor}")
         // note: tag of repeated primitives is calculated in beginCollection(), since is calculated based on the collection's size.
         // That's why we implicit pass here `MISSING_TAG`.
-        val calculator = RepeatedCalculator(proto, MISSING_TAG, serializer.descriptor)
+        val calculator = PrimitiveRepeatedCalculator(proto, currentTagOrDefault, serializer.descriptor)
         calculator.encodeSerializableValue(serializer, value)
         serializedSize += calculator.serializedSize
     }
@@ -321,7 +315,7 @@ internal open class ProtoBufSerializedSizeCalculator(
     }
 }
 
-@OptIn(ExperimentalSerializationApi::class)
+@ExperimentalSerializationApi
 internal open class ObjectSizeCalculator(
     proto: ProtoBuf,
     @JvmField protected val parentTag: ProtoDesc,
@@ -329,8 +323,8 @@ internal open class ObjectSizeCalculator(
     serializedSizePointer: SerializedSizePointer = SerializedSizePointer(-1)
 ) : ProtoBufSerializedSizeCalculator(proto, descriptor, serializedSizePointer)
 
-@OptIn(ExperimentalSerializationApi::class)
-private class RepeatedCalculator(
+@ExperimentalSerializationApi
+private open class RepeatedCalculator(
     proto: ProtoBuf,
     @JvmField val curTag: ProtoDesc,
     descriptor: SerialDescriptor,
@@ -344,14 +338,48 @@ private class RepeatedCalculator(
 
     override fun <T> encodeSerializableValue(serializer: SerializationStrategy<T>, value: T) {
         println("adding tag size in collection:${curTag.protoId}")
-        if (curTag != MISSING_TAG) {
-//            serializedSize += computeTagSize(curTag.protoId)
-        }
         super.encodeSerializableValue(serializer, value)
     }
 }
 
-@OptIn(ExperimentalSerializationApi::class)
+@ExperimentalSerializationApi
+private class PrimitiveRepeatedCalculator(
+    proto: ProtoBuf,
+    curTag: ProtoDesc,
+    descriptor: SerialDescriptor,
+    serializedWrapper: SerializedSizePointer = SerializedSizePointer(-1)
+) : RepeatedCalculator(proto, curTag, descriptor, serializedWrapper) {
+
+    // Triggers computers to choose `MISSING_TAG` path
+    override fun SerialDescriptor.getTag(index: Int): ProtoDesc = MISSING_TAG
+
+    override fun encodeTaggedBoolean(tag: ProtoDesc, value: Boolean) {
+        if (curTag != MISSING_TAG) serializedSize += computeTagSize(curTag.protoId)
+        super.encodeTaggedBoolean(tag, value)
+    }
+
+    override fun encodeTaggedByte(tag: ProtoDesc, value: Byte) {
+        if (curTag != MISSING_TAG) serializedSize += computeTagSize(curTag.protoId)
+        super.encodeTaggedByte(tag, value)
+    }
+
+    override fun encodeTaggedInt(tag: ProtoDesc, value: Int) {
+        if (curTag != MISSING_TAG) serializedSize += computeTagSize(curTag.protoId)
+        super.encodeTaggedInt(tag, value)
+    }
+
+    override fun encodeTaggedLong(tag: ProtoDesc, value: Long) {
+        if (curTag != MISSING_TAG) serializedSize += computeTagSize(curTag.protoId)
+        super.encodeTaggedLong(tag, value)
+    }
+
+    override fun encodeTaggedShort(tag: ProtoDesc, value: Short) {
+        if (curTag != MISSING_TAG) serializedSize += computeTagSize(curTag.protoId)
+        super.encodeTaggedShort(tag, value)
+    }
+}
+
+@ExperimentalSerializationApi
 private class MapRepeatedCalculator(
     proto: ProtoBuf,
     parentTag: ProtoDesc,
@@ -397,7 +425,7 @@ internal class PackedArrayCalculator(
     /* SerializedSize to be used as result container. The final tag is computed through this result. */
     SerializedSizePointer(-1)
 ) {
-    // Triggers not writing header
+    // Triggers computers to choose `MISSING_TAG` path
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc = MISSING_TAG
 
     override fun endEncode(descriptor: SerialDescriptor) {
