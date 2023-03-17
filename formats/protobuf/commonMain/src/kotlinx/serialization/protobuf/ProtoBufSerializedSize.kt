@@ -152,11 +152,7 @@ internal open class ProtoBufSerializedSizeCalculator(
         }
     }
 
-    override fun endEncode(descriptor: SerialDescriptor) {
-        // with new design of cache, this is not needed after all
-//        println("\n updating cache with size: $serializedSize for: $descriptor \n")
-//        memoizedSerializedSizes.set(descriptor, serializedSize)
-    }
+    override fun endEncode(descriptor: SerialDescriptor) {}
 
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc = extractParameters(index)
 
@@ -578,7 +574,6 @@ private fun <T> ProtoBuf.computeSerializedMessageSize(serializer: SerializationS
     println("calculating size for ${serializer.descriptor}")
     calculator.encodeSerializableValue(serializer, value)
     println("calculator.serializedSize: ${calculator.serializedSize}")
-//    println("cache state ${memoizedSerializedSizes.get(serializer.descriptor)}")
     return calculator.serializedSize
 }
 
