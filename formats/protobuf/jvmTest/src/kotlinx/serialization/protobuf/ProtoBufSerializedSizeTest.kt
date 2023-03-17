@@ -412,7 +412,7 @@ class ProtoBufSerializedSizeTest {
         assertEquals(java.serializedSize, size)
     }
 
-    //@Test TODO: this fails due to bad design of cache.
+    @Test
     fun shouldCalculateEmptyMessageWithPackedFields() {
         val data = DataWithPackedFields(listOf())
         val size = protoBuf.getOrComputeSerializedSize(DataWithPackedFields.serializer(), data)

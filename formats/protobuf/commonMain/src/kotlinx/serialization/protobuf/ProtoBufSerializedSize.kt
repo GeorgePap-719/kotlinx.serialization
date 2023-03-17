@@ -18,18 +18,15 @@ private val memoizedSerializedSizes = createSerializedSizeCache()
 internal expect fun createSerializedSizeCache(): SerializedSizeCache
 
 /**
- * A key for associating an instance of class with a given [SerialDescriptor]. It is the object's
- * hashcode.
+ * The object's hashcode, acting as a key for associating an instance of class with a given [SerialDescriptor].
  */
-internal typealias SerializedSizeCacheKey = Int // object's hashcode
+internal typealias SerializedSizeCacheKey = Int
 
 internal typealias SerializedData = Map<SerializedSizeCacheKey, Int>
 
-//TODO: add kdoc
-// notes: memoization can probably be done with a concurrent map holding descriptor and serializedSize.
-// note: probably this memoization has to be redesigned.
-// note: cache holds unnecessary sizes during computing.
-// note: maybe it's better for key to be object's hashed value. (needs research)
+/**
+ * A storage to memoize a computed `serializedSize`.
+ */
 internal interface SerializedSizeCache {
     /**
      * Returns the `serializedSize` associated with the given [key] and [descriptor], if found else null.
@@ -54,19 +51,11 @@ internal fun SerializedSizeCache.getOrPut(
 }
 
 /**
- * Represents the key associated with an instance of a class. Contains the hashcode of the associated instance.
+ * Returns the number of bytes required to encode this [message][value]. The size is computed on the first call
+ * and memoized.
  */
-//internal class SerializedSizeCacheKey(
-//    /**
-//     * The hashcode of the associated instance.
-//     */
-//    val hashcode: Int
-//)
-
-/* Get the number of bytes required to encode this message. The result is only computed on the first call and memoized after that.*/
-/**
- * Returns the number of bytes required to encode this [message][value].
- */
+// Notes: Even though this API has some usage for consumers, for example see: https://github.com/protobufjs/protobuf.js/issues/162
+// It can also be considered as an internal API, to support only encoding/decoding delimited-messages.
 @ExperimentalSerializationApi
 public fun <T> ProtoBuf.getOrComputeSerializedSize(serializer: SerializationStrategy<T>, value: T): Int {
     val key = value.hashCode()
@@ -83,13 +72,14 @@ public fun <T> ProtoBuf.getOrComputeSerializedSize(serializer: SerializationStra
  */
 internal data class SerializedSizePointer(var value: Int)
 
+// alternative name: ProtoBufSerializedSizeComputor
 @ExperimentalSerializationApi
 internal open class ProtoBufSerializedSizeCalculator(
     private val proto: ProtoBuf,
     internal val descriptor: SerialDescriptor,
     private val serializedSizePointer: SerializedSizePointer = SerializedSizePointer(-1)
 ) : ProtobufTaggedEncoder() {
-    internal var serializedSize // memoized it
+    internal var serializedSize
         get() = serializedSizePointer.value
         set(value) {
             println("updating size with $value for ${descriptor.serialName}")
@@ -113,8 +103,8 @@ internal open class ProtoBufSerializedSizeCalculator(
                     println("tag state:$tag")
                     if (this.descriptor.kind == StructureKind.LIST && tag != MISSING_TAG && this.descriptor != descriptor) {
                         // NestedRepeatedEncoder
-                        // Never reaching here. Not sure which case it is.
-                        TODO("not yet implemented")
+                        // Never reaching here. Not sure which case it falls into.
+                        TODO("research if it is needed at all")
                     } else {
                         println("before: RepeatedCalculator")
                         if (this is RepeatedCalculator) {
@@ -163,8 +153,9 @@ internal open class ProtoBufSerializedSizeCalculator(
     }
 
     override fun endEncode(descriptor: SerialDescriptor) {
-        println("\n updating cache with size: $serializedSize for: $descriptor \n")
-        memoizedSerializedSizes.set(descriptor, serializedSize)
+        // with new design of cache, this is not needed after all
+//        println("\n updating cache with size: $serializedSize for: $descriptor \n")
+//        memoizedSerializedSizes.set(descriptor, serializedSize)
     }
 
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc = extractParameters(index)
@@ -587,7 +578,7 @@ private fun <T> ProtoBuf.computeSerializedMessageSize(serializer: SerializationS
     println("calculating size for ${serializer.descriptor}")
     calculator.encodeSerializableValue(serializer, value)
     println("calculator.serializedSize: ${calculator.serializedSize}")
-    println("cache state ${memoizedSerializedSizes.get(serializer.descriptor)}")
+//    println("cache state ${memoizedSerializedSizes.get(serializer.descriptor)}")
     return calculator.serializedSize
 }
 
