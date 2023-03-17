@@ -75,6 +75,7 @@ internal open class ProtoBufSerializedSizeCalculator(
                     println("tag state:$tag")
                     if (this.descriptor.kind == StructureKind.LIST && tag != MISSING_TAG && this.descriptor != descriptor) {
                         // NestedRepeatedEncoder
+                        // Never reaching here. Not sure which case it is.
                         TODO("not yet implemented")
                     } else {
                         println("before: RepeatedCalculator")
@@ -295,8 +296,6 @@ internal open class ProtoBufSerializedSizeCalculator(
 
     private fun <T> computeRepeatedPrimitive(serializer: SerializationStrategy<T>, value: T) {
         println("inside computeRepeatedPrimitive with desc: ${serializer.descriptor}")
-        // note: tag of repeated primitives is calculated in beginCollection(), since is calculated based on the collection's size.
-        // That's why we implicit pass here `MISSING_TAG`.
         val calculator = PrimitiveRepeatedCalculator(proto, currentTagOrDefault, serializer.descriptor)
         calculator.encodeSerializableValue(serializer, value)
         serializedSize += calculator.serializedSize
@@ -316,7 +315,7 @@ internal open class ProtoBufSerializedSizeCalculator(
 }
 
 @ExperimentalSerializationApi
-internal open class ObjectSizeCalculator(
+private open class ObjectSizeCalculator(
     proto: ProtoBuf,
     @JvmField protected val parentTag: ProtoDesc,
     descriptor: SerialDescriptor,
@@ -405,7 +404,7 @@ private class MapRepeatedCalculator(
 }
 
 @OptIn(ExperimentalSerializationApi::class)
-internal open class NestedRepeatedCalculator(
+private open class NestedRepeatedCalculator(
     proto: ProtoBuf,
     @JvmField val curTag: ProtoDesc,
     descriptor: SerialDescriptor,
@@ -421,7 +420,7 @@ internal open class NestedRepeatedCalculator(
 }
 
 @OptIn(ExperimentalSerializationApi::class)
-internal class PackedArrayCalculator(
+private class PackedArrayCalculator(
     proto: ProtoBuf,
     curTag: ProtoDesc,
     descriptor: SerialDescriptor,
