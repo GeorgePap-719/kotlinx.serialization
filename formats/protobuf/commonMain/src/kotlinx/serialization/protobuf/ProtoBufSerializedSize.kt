@@ -557,9 +557,7 @@ private fun <T> ProtoBuf.computeSerializedMessageSize(serializer: SerializationS
 
 @OptIn(ExperimentalSerializationApi::class)
 private fun SerialDescriptor.isChildDescriptorPrimitive(): Boolean {
-    val child = runCatching { this.getElementDescriptor(0) }.getOrElse {
-        error("child is not retrievable for list descriptor:$this")
-    }
+    val child = runCatching { this.getElementDescriptor(0) }.getOrElse { return false }
     return child.kind is PrimitiveKind
 }
 

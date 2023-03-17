@@ -15,7 +15,6 @@ internal fun computeLengthDelimitedFieldSize(length: Int): Int = computeUInt32Si
 internal fun getFixed64SizeNoTag(): Int = FIXED64_SIZE
 internal fun computeSInt64SizeNoTag(value: Long): Int = computeUInt64SizeNoTag(encodeZigZag64(value))
 internal fun computeInt64SizeNoTag(value: Long): Int = computeUInt64SizeNoTag(value)
-//internal fun computeUInt64SizeNoTag(value: Long): Int = varintLength(value)
 
 //TODO: should this also be named "compute" for consistency?
 internal fun getFixed32SizeNoTag() = FIXED32_SIZE
@@ -24,7 +23,6 @@ internal fun computeInt32SizeNoTag(value: Int) =
     if (value >= 0) computeUInt32SizeNoTag(value) else MAX_VARINT_SIZE
 
 /** Compute the number of bytes that would be needed to encode an uint32 field. */
-//TODO: use varintLen?
 internal fun computeUInt32SizeNoTag(value: Int): Int = when {
     value and (0.inv() shl 7) == 0 -> 1
     value and (0.inv() shl 14) == 0 -> 2
