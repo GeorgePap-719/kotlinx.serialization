@@ -252,6 +252,43 @@ class ProtoBufSerializedSizeTest {
     }
 
     @Serializable
+    data class DataRepeatedObjectMessageWithRandomTag(@ProtoNumber(20) val inner: List<DataAllTypes>)
+
+    @Test
+    fun shouldCalculateRepeatedObjectMessageWithRandomTags() {
+        val dataInner = DataAllTypes(
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7.0F,
+            8.0,
+            true,
+            "hi"
+        )
+        val data = DataRepeatedObjectMessageWithRandomTag(listOf(dataInner, dataInner, dataInner))
+        val size = protoBuf.getOrComputeSerializedSize(DataRepeatedObjectMessageWithRandomTag.serializer(), data)
+        val javaInner = TestAllTypes.newBuilder().apply {
+            i32 = 1
+            si32 = 2
+            f32 = 3
+            i64 = 4
+            si64 = 5
+            f64 = 6
+            f = 7.0F
+            d = 8.0
+            b = true
+            s = "hi"
+        }.build()
+        val javaType = TestRepeatedObjectMessageWithRandomTags.newBuilder().apply {
+            addAllInner(listOf(javaInner, javaInner, javaInner))
+        }.build()
+        assertEquals(javaType.serializedSize, size)
+    }
+
+    @Serializable
     data class DataEnumMessage(val a: Coffee) {
         enum class Coffee {
             Americano,
