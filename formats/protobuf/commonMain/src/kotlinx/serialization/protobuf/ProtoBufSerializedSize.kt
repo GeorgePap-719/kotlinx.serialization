@@ -17,22 +17,60 @@ private val memoizedSerializedSizes = createSerializedSizeCache()
 
 internal expect fun createSerializedSizeCache(): SerializedSizeCache
 
+/**
+ * A key for associating an instance of class with a given [SerialDescriptor]. It is the object's
+ * hashcode.
+ */
+internal typealias SerializedSizeCacheKey = Int // object's hashcode
+
+internal typealias SerializedData = Map<SerializedSizeCacheKey, Int>
+
 //TODO: add kdoc
 // notes: memoization can probably be done with a concurrent map holding descriptor and serializedSize.
 // note: probably this memoization has to be redesigned.
 // note: cache holds unnecessary sizes during computing.
 // note: maybe it's better for key to be object's hashed value. (needs research)
 internal interface SerializedSizeCache {
-    fun get(key: SerialDescriptor): Int?
-    fun put(key: SerialDescriptor, size: Int)
+    /**
+     * Returns the `serializedSize` associated with the given [key] and [descriptor], if found else null.
+     */
+    operator fun get(descriptor: SerialDescriptor, key: SerializedSizeCacheKey): Int?
+
+    /**
+     * Sets the `serializedSize` and associates it with the given [key] and [descriptor].
+     */
+    operator fun set(descriptor: SerialDescriptor, key: SerializedSizeCacheKey, serializedSize: Int)
 }
 
+internal fun SerializedSizeCache.getOrPut(
+    descriptor: SerialDescriptor,
+    key: SerializedSizeCacheKey,
+    defaultValue: () -> Int
+): Int {
+    get(descriptor, key)?.let { return it }
+    val value = defaultValue()
+    set(descriptor, key, value)
+    return value
+}
+
+/**
+ * Represents the key associated with an instance of a class. Contains the hashcode of the associated instance.
+ */
+//internal class SerializedSizeCacheKey(
+//    /**
+//     * The hashcode of the associated instance.
+//     */
+//    val hashcode: Int
+//)
+
+/* Get the number of bytes required to encode this message. The result is only computed on the first call and memoized after that.*/
+/**
+ * Returns the number of bytes required to encode this [message][value].
+ */
 @ExperimentalSerializationApi
 public fun <T> ProtoBuf.getOrComputeSerializedSize(serializer: SerializationStrategy<T>, value: T): Int {
-    val memoizedSize = memoizedSerializedSizes.get(serializer.descriptor)
-    return if (memoizedSize != null) {
-        memoizedSize
-    } else {
+    val key = value.hashCode()
+    return memoizedSerializedSizes.getOrPut(serializer.descriptor, key) {
         val calculator = ProtoBufSerializedSizeCalculator(this, serializer.descriptor)
         calculator.encodeSerializableValue(serializer, value)
         calculator.serializedSize
@@ -126,7 +164,7 @@ internal open class ProtoBufSerializedSizeCalculator(
 
     override fun endEncode(descriptor: SerialDescriptor) {
         println("\n updating cache with size: $serializedSize for: $descriptor \n")
-        memoizedSerializedSizes.put(descriptor, serializedSize)
+        memoizedSerializedSizes.set(descriptor, serializedSize)
     }
 
     override fun SerialDescriptor.getTag(index: Int): ProtoDesc = extractParameters(index)

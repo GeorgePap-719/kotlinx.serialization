@@ -8,11 +8,11 @@ internal actual fun createSerializedSizeCache(): SerializedSizeCache {
 }
 
 private class ConcurrentHashMapSerializedCache : SerializedSizeCache {
-    private val cache = ConcurrentHashMap<SerialDescriptor, Int>()
+    private val cache = ConcurrentHashMap<SerialDescriptor, SerializedData>()
 
-    override fun get(key: SerialDescriptor): Int? = cache[key]
+    override fun get(descriptor: SerialDescriptor, key: SerializedSizeCacheKey): Int? = cache[descriptor]?.get(key)
 
-    override fun put(key: SerialDescriptor, size: Int) {
-        cache[key] = size
+    override fun set(descriptor: SerialDescriptor, key: SerializedSizeCacheKey, serializedSize: Int) {
+        cache[descriptor] = mapOf(key to serializedSize)
     }
 }
