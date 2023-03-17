@@ -27,6 +27,7 @@ internal typealias SerializedData = Map<SerializedSizeCacheKey, Int>
 /**
  * A storage to memoize a computed `serializedSize`.
  */
+// Notes: js-impl & native-impl are not based on concurrent-safe structures.
 internal interface SerializedSizeCache {
     /**
      * Returns the `serializedSize` associated with the given [key] and [descriptor], if found else null.
